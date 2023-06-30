@@ -1,0 +1,16 @@
+version: "3"
+
+services:
+  embeddings:
+    build:
+      context: "../"
+      dockerfile: development/Dockerfile
+      args:
+        DEBUG: "true"
+    hostname: embeddings
+    container_name: embeddings
+    env_file: ../config.env
+    volumes:
+      - ../:/code
+    ports:
+     - 8081:8081

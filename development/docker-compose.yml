@@ -1,0 +1,35 @@
+version: "3"
+
+services:
+  embeddings:
+    extends:
+      file: docker-compose-base.yml
+      service: embeddings
+
+  server:
+    extends:
+      file: ../chroma/docker-compose.yml
+      service: server
+    hostname: chroma-server
+    container_name: chroma-server
+
+  clickhouse:
+    extends:
+      file: ../chroma/docker-compose.yml
+      service: clickhouse
+    hostname: chroma-clickhouse
+    container_name: chroma-clickhouse
+
+networks:
+  net:
+    driver: bridge
+
+volumes:
+  clickhouse_data:
+    driver: local
+  clickhouse_logs:
+    driver: local
+  index_data:
+    driver: local
+  backups:
+    driver: local
