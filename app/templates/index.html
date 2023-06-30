@@ -10,6 +10,41 @@
 <body>
     <h1><a href="/">Works embeddings</a></h1>
     <h2>Click on a Work to see related works</h2>
-    <p>TODO...</p>
+    <ol>
+    {% for embedding in embeddings[:11] %}
+        <li id="{{ embedding.work }}">
+            <p>
+                <a href="/?work={{ embedding.work }}">{{ embedding.work }}</a>
+                {% if embedding.distance %}
+                 ({{ embedding.distance }})
+                {% endif %}
+            </p>
+        </li>
+    {% endfor %}
+    </ol>
 </body>
 </html>
+
+<script defer>
+    const works = document.getElementsByTagName('li');
+    for (let index = 0; index < works.length; index++) {
+        const element = works[index];
+        fetch(`https://xos.acmi.net.au/api/works/${element.id}/`, {
+            method: 'get'
+        }).then(function(response) {
+            return response.json();
+        }).then(function(data) {
+            if (data.title) {
+                element.getElementsByTagName("a")[0].append(` ${data.title}`);
+                const image = document.createElement("img");
+                image.src = data.thumbnail.image_url;
+                image.title = data.title;
+                image.alt = data.title;
+                image.width = 100;
+                element.appendChild(image);
+            }
+        }).catch(function(err) {
+            // Error
+        });
+    }
+</script>

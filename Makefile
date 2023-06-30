@@ -21,6 +21,8 @@ test:
 linttest: lint test
 base:
 	docker compose -f development/docker-compose-base.yml up
+basebuild:
+	docker compose -f development/docker-compose-base.yml up --build
 build:
 	docker compose -f development/docker-compose.yml up --build
 up:
