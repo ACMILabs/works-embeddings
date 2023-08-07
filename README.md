@@ -4,6 +4,8 @@ A recommendation engine for Works in the ACMI Collection using [OpenAI embedding
 
 ![ACMI Works Embeddings CI](https://github.com/ACMILabs/works-embeddings/workflows/ACMI%20Works%20Embeddings%20CI/badge.svg)
 
+<img src="works-embeddings-v1.gif" width="100%" alt="ACMI Works embeddings running" title="ACMI Works embeddings running" />
+
 ## Use
 
 * Connect to your ACMI VPN to access XOS private APIs (or point to your own API)
