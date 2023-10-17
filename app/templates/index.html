@@ -11,12 +11,12 @@
     <h1><a href="/">Works embeddings</a></h1>
     <h2>Click on a Work to see related works</h2>
     <ol>
-    {% for embedding in embeddings[:11] %}
+    {% for embedding in embeddings %}
         <li id="{{ embedding.work }}">
             <p>
-                <a href="/?work={{ embedding.work }}">{{ embedding.work }}</a>
+                <a href="/?work={{ embedding.work }}"></a>
                 {% if embedding.distance %}
-                 (distance: {{ embedding.distance }})
+                 (distance: {{ '%0.3f' % embedding.distance|float }})
                 {% endif %}
             </p>
         </li>
@@ -29,22 +29,34 @@
     const works = document.getElementsByTagName('li');
     for (let index = 0; index < works.length; index++) {
         const element = works[index];
-        fetch(`https://xos.acmi.net.au/api/works/${element.id}/`, {
+        fetch(`/works/${element.id}/`, {
             method: 'get'
         }).then(function(response) {
             return response.json();
         }).then(function(data) {
             if (data.title) {
+                const paragraph = document.createElement("p");
+                const website = document.createElement("a");
+                paragraph.appendChild(website);
+                website.href = `https://www.acmi.net.au/works/${data.id}--${data.slug}/`;
+                website.innerText = 'ACMI website';
                 element.getElementsByTagName("a")[0].append(` ${data.title}`);
-                const image = document.createElement("img");
-                image.src = data.thumbnail.image_url;
-                image.title = data.title;
-                image.alt = data.title;
-                image.width = 100;
-                element.appendChild(image);
+                if (data.thumbnail) {
+                    const link = document.createElement("a");
+                    link.href = `/?work=${data.id}`;
+                    const image = document.createElement("img");
+                    image.src = data.thumbnail.image_url;
+                    image.title = data.title;
+                    image.alt = data.title;
+                    image.width = 100;
+                    link.appendChild(image);
+                    element.appendChild(link);
+                }
+                element.appendChild(paragraph);
             }
         }).catch(function(err) {
             // Error
+            console.log(err);
         });
     }
 </script>

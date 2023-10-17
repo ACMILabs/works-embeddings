@@ -1,17 +1,17 @@
 import os
 import random
 import requests
-from flask import Flask, render_template, request
+from flask import Flask, jsonify, render_template, request
 
 import chromadb
 
 DEBUG = os.getenv('DEBUG', 'false').lower() == 'true'
+REBUILD = os.getenv('REBUILD', 'false').lower() == 'true'
 XOS_API_ENDPOINT = os.getenv('XOS_API_ENDPOINT', None)
-XOS_RETRIES = int(os.getenv('XOS_RETRIES', '3'))
+XOS_RETRIES = int(os.getenv('XOS_RETRIES', '1'))
 XOS_TIMEOUT = int(os.getenv('XOS_TIMEOUT', '60'))
 
 application = Flask(__name__)
-embeddings = []
 CHROMA = None
 
 
@@ -21,27 +21,47 @@ def home():
     Works embeddings home page.
     """
     results = None
-    filtered_embeddings = embeddings
+    filtered_embeddings = CHROMA.embeddings
 
+    json = request.args.get('json', 'false').lower() == 'true'
     work = request.args.get('work', None)
+    size = int(request.args.get('size', '11'))
+
     if work:
-        for embedding in embeddings:
+        for embedding in CHROMA.embeddings:
             if str(embedding['work']) == work:
-                results = CHROMA.search(embedding, 11)
+                result = CHROMA.collection.get(
+                    ids=embedding['id'],
+                    include=['embeddings', 'documents'],
+                )
+                results = CHROMA.search(result['embeddings'][0], size)
         if results:
             filtered_embeddings = []
             for index, embedding_id in enumerate(results['ids'][0]):
-                for embedding in embeddings:
+                for embedding in CHROMA.embeddings:
                     if str(embedding['id']) == embedding_id:
                         embedding['distance'] = results['distances'][0][index]
                         filtered_embeddings.append(embedding)
     elif filtered_embeddings:
-        filtered_embeddings = random.sample(filtered_embeddings, 11)
+        filtered_embeddings = random.sample(filtered_embeddings, size)
 
-    return render_template(
-        'index.html',
-        embeddings=filtered_embeddings,
-    )
+    if DEBUG and not json:
+        return render_template(
+            'index.html',
+            embeddings=filtered_embeddings,
+        )
+
+    return jsonify(filtered_embeddings)
+
+
+if DEBUG:
+    @application.route('/works/<work_id>/')
+    def works(work_id):
+        """
+        Return an XOS Work.
+        """
+        xos = XOSAPI()
+        return jsonify(xos.get(f'works/{work_id}').json())
 
 
 class NoCollectionException(Exception):
@@ -55,17 +75,18 @@ class Chroma():
     Chroma vector database to interact with embeddings.
     """
     def __init__(self):
-        self.client = chromadb.Client()
+        self.client = chromadb.PersistentClient(path='works_db')  # pylint: disable=no-member
         self.collection_name = 'works'
         self.collection = None
+        self.embeddings = []
 
-    def create_collection(self, name=None):
+    def get_collection(self, name=None):
         """
-        Create a collection of embeddings.
+        Get or create a collection of embeddings.
         """
         if not name:
             name = self.collection_name
-        self.collection = self.client.create_collection(name=name)
+        self.collection = self.client.get_or_create_collection(name=name)
         return self.collection
 
     def add_embedding(self, embeddings_json):
@@ -81,7 +102,7 @@ class Chroma():
             ids=[str(embeddings_json['id'])],
         )
 
-    def add_pages_of_embeddings(self, pages=1):
+    def add_pages_of_embeddings(self, pages=999999):
         """
         Add pages of XOS Embeddings API results to Chroma.
         """
@@ -90,16 +111,38 @@ class Chroma():
             embeddings_json = XOSAPI().get('embeddings', {'page': page}).json()
             for embedding in embeddings_json['results']:
                 self.add_embedding(embedding)
-                embeddings.append(embedding)
+                self.embeddings.append({
+                    'id': str(embedding['id']),
+                    'work': str(embedding['work']),
+                })
             print(f'Added {len(embeddings_json["results"])} from page {page}')
             page += 1
+            if not embeddings_json['next']:
+                print(f'Finished adding {len(CHROMA.embeddings)} items.')
+                break
 
-    def search(self, embeddings_json, number_of_results=2):
+    def load_embeddings(self):
+        """
+        Load embeddings from the collection.
+        """
+        if not self.collection:
+            self.get_collection()
+        embedding_ids = self.collection.get()['ids']
+        for index, embedding_id in enumerate(embedding_ids):
+            result = self.collection.get(ids=embedding_id, include=['documents'])
+            self.embeddings.append({
+                'id': result['ids'][0],
+                'work': result['documents'][0],
+            })
+            if index > 0 and index % 1000 == 0:
+                print(f'Loaded {index}...')
+
+    def search(self, work_embeddings, number_of_results=2):
         """
         Query Chroma for results near the individual XOS Embeddings JSON handed in.
         """
         return self.collection.query(
-            query_embeddings=[embeddings_json['data']['data'][0]['embedding']],
+            query_embeddings=[work_embeddings],
             n_results=number_of_results,
         )
 
@@ -150,14 +193,20 @@ class XOSAPI():  # pylint: disable=too-few-public-methods
         return None
 
 
-if __name__ == '__main__':
-    if DEBUG:
-        print('===================================')
-        print('Adding some embeddings to Chroma...')
+with application.app_context():
+    print('===================================')
+    if not CHROMA:
         CHROMA = Chroma()
-        CHROMA.create_collection()
-        CHROMA.add_pages_of_embeddings(2)
-        print('===================================')
+        CHROMA.get_collection()
+        print('Loading embeddings...')
+        CHROMA.load_embeddings()
+        if REBUILD:
+            print('Rebuilding the collection...')
+            CHROMA.add_pages_of_embeddings()
+    print('===================================')
+
+
+if __name__ == '__main__':
     application.run(
         host='0.0.0.0',
         port=8081,
