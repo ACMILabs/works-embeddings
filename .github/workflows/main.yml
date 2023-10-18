@@ -7,6 +7,7 @@ env:
   DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
   DOCKER_REPOSITORY: acmilabs/works-embeddings
   DOCKER_IMAGE_TAG: ${{ github.sha }}
+  AZURE_WEBAPP_NAME: "website2020-embeddings-appservice"
 
 jobs:
   build-embeddings:
@@ -31,6 +32,7 @@ jobs:
           image_name: "${{ env.DOCKER_REPOSITORY }}"
           image_tag: "${{ env.DOCKER_IMAGE_TAG }}"
           build_extra_args: "--compress=true"
+          push_git_tag: true
 
       - name: cancel entire action if failed
         if: failure()
@@ -55,3 +57,51 @@ jobs:
     - name: cancel entire action if failed
       if: failure()
       uses: andymckay/cancel-action@0.2
+
+  build-embeddings-latest:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Cancel previous runs
+        uses: styfle/cancel-workflow-action@0.4.0
+        with:
+          access_token: ${{ github.token }}
+
+      - uses: actions/checkout@v2
+      - name: Build the latest image for production (cached)
+        if: success()
+        uses: whoan/docker-build-with-cache-action@v5
+        with:
+          username: "${{ secrets.DOCKER_USERNAME }}"
+          password: "${{ secrets.DOCKER_PASSWORD }}"
+          image_name: "${{ env.DOCKER_REPOSITORY }}"
+          image_tag: "latest"
+          build_extra_args: "--compress=true"
+          push_git_tag: true
+
+      - name: cancel entire action if failed
+        if: failure()
+        uses: andymckay/cancel-action@0.2
+
+  deploy:
+    needs: [build-embeddings-latest]
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Azure authentication
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+    - name: ACR authentication
+      uses: azure/docker-login@v1
+      with:
+        login-server: ${{ env.DOCKER_REPOSITORY }}
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+    - name: 'Deploy to Azure Web App for Container'
+      uses: azure/webapps-deploy@v2
+      with:
+        app-name: ${{ env.AZURE_WEBAPP_NAME }}
+        images: ${{ env.DOCKER_REPOSITORY }}:latest
