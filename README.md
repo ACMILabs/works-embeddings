@@ -10,8 +10,7 @@ A recommendation engine for Works in the ACMI Collection using [OpenAI embedding
 
 * Connect to your ACMI VPN to access XOS private APIs (or point to your own API)
 * Copy the `config.tmpl.env` file to `config.env`
-* Start your environment: `make base`
-* Disable CORS in your browser: `Develop > Disable Cross-Origin restrictions`
+* Start your environment: `make up`
 * Click a work to get its nearest neighbours: http://localhost:8081
 
 ## Create Embeddings
@@ -77,5 +76,5 @@ An example of the resulting `JSON` Embedding model from the XOS `/embeddings/` A
 - [x] Build Flask interface for prototyping
 - [x] Load Chroma with XOS Works embeddings
 - [x] Get recommendations based on an ACMI collection Work
-- [ ] Remove Chroma submodule if not necessary
-- [ ] Fix CORS issue loading images locally
+- [x] Remove Chroma submodule if not necessary
+- [x] Fix CORS issue loading images locally
