@@ -11,6 +11,7 @@ XOS_API_ENDPOINT = os.getenv('XOS_API_ENDPOINT', None)
 XOS_RETRIES = int(os.getenv('XOS_RETRIES', '1'))
 XOS_TIMEOUT = int(os.getenv('XOS_TIMEOUT', '60'))
 DATABASE_PATH = os.getenv('DATABASE_PATH', '')
+PORT = int(os.getenv('PORT', '8081'))
 
 application = Flask(__name__)
 CHROMA = None
@@ -213,7 +214,7 @@ with application.app_context():
 if __name__ == '__main__':
     application.run(
         host='0.0.0.0',
-        port=8081,
+        port=PORT,
         debug=DEBUG,
         use_reloader=False,
     )
