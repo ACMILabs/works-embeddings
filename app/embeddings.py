@@ -108,7 +108,10 @@ class Chroma():
         """
         page = 1
         while page < (pages + 1):
-            embeddings_json = XOSAPI().get('embeddings', {'page': page}).json()
+            embeddings_json = XOSAPI().get(
+                'embeddings',
+                {'page': page, 'unpublished': 'false'},
+            ).json()
             for embedding in embeddings_json['results']:
                 self.add_embedding(embedding)
                 self.embeddings.append({

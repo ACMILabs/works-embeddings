@@ -13,6 +13,12 @@ A recommendation engine for Works in the ACMI Collection using [OpenAI embedding
 * Start your environment: `make up`
 * Click a work to get its nearest neighbours: http://localhost:8081
 
+### Rebuild the Chroma database from your Embeddings API
+
+* Open `config.env` and set `REBUILD=true`
+* Delete the `works_db` directory if it exists
+* Start the app: `make up`
+
 ## Create Embeddings
 
 This prototype relies on having already created OpenAI Embeddings for your collection database.
