@@ -2,9 +2,10 @@
 
 # Start with a fresh database
 if [ "$DELETE_DB" = "true" ]; then
-    cd /code/
+    echo "Deleting /code/works_db/ directory..."
     rm -rf /code/works_db/
     rm -rf works_db
+    echo "Finished deleting..."
 fi
 
 # Check if a Chroma database exists on the filesystem
