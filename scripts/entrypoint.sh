@@ -1,8 +1,10 @@
-#!/bin/ash
+#!/bin/bash
 
 # Start with a fresh database
 if [ "$DELETE_DB" = "true" ]; then
+    cd /code/
     rm -rf /code/works_db/
+    rm -rf works_db
 fi
 
 # Check if a Chroma database exists on the filesystem
