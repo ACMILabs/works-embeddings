@@ -1,11 +1,17 @@
 #!/bin/ash
 
+# Start with a fresh database
+if [ "$DELETE_DB" = "true" ]; then
+    rm -rf /code/works_db/
+fi
+
 # Check if a Chroma database exists on the filesystem
 if [ ! -d "/code/works_db/" ] && [ "$REBUILD" = "false" ]; then
     echo "Directory /code/works_db/ does not exist. Downloading from ${CACHE_URL}..."
 
     if [ -n "$CACHE_URL" ]; then
         # Download file from S3
+        cd /code/
         curl -O "${CACHE_URL}works_db.tar.gz"
         tar -xvzf works_db.tar.gz
 
