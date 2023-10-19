@@ -10,6 +10,7 @@ REBUILD = os.getenv('REBUILD', 'false').lower() == 'true'
 XOS_API_ENDPOINT = os.getenv('XOS_API_ENDPOINT', None)
 XOS_RETRIES = int(os.getenv('XOS_RETRIES', '1'))
 XOS_TIMEOUT = int(os.getenv('XOS_TIMEOUT', '60'))
+DATABASE_PATH = os.getenv('DATABASE_PATH', '')
 
 application = Flask(__name__)
 CHROMA = None
@@ -75,7 +76,7 @@ class Chroma():
     Chroma vector database to interact with embeddings.
     """
     def __init__(self):
-        self.client = chromadb.PersistentClient(path='works_db')  # pylint: disable=no-member
+        self.client = chromadb.PersistentClient(path=f'{DATABASE_PATH}works_db')  # pylint: disable=no-member
         self.collection_name = 'works'
         self.collection = None
         self.embeddings = []
