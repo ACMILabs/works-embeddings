@@ -8,7 +8,7 @@ if [ "$DELETE_DB" = "true" ]; then
 fi
 
 # Check if a Chroma database exists on the filesystem
-if [ ! -d "${DATABASE_PATH}works_db" ] && [ "$REBUILD" = "false" ]; then
+if [ "$DELETE_DB" = "true" ] || { [ ! -d "${DATABASE_PATH}works_db" ] && [ "$REBUILD" = "false" ]; }; then
     echo "Directory ${DATABASE_PATH}works_db does not exist. Downloading from ${CACHE_URL}..."
 
     if [ -n "$CACHE_URL" ]; then
