@@ -202,7 +202,7 @@ with application.app_context():
     if not CHROMA:
         CHROMA = Chroma()
         CHROMA.get_collection()
-        print('Loading embeddings...')
+        print(f'Loading embeddings from {DATABASE_PATH}...')
         CHROMA.load_embeddings()
         if REBUILD:
             print('Rebuilding the collection...')
