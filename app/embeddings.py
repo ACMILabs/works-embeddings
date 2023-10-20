@@ -25,7 +25,7 @@ def home():
     results = None
     filtered_embeddings = CHROMA.embeddings
 
-    json = request.args.get('json', 'false').lower() == 'true'
+    json = request.args.get('json', 'true').lower() == 'true'
     work = request.args.get('work', None)
     size = int(request.args.get('size', '11'))
 
@@ -47,7 +47,7 @@ def home():
     elif filtered_embeddings:
         filtered_embeddings = random.sample(filtered_embeddings, size)
 
-    if DEBUG and not json:
+    if not json:
         return render_template(
             'index.html',
             embeddings=filtered_embeddings,
