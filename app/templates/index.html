@@ -4,24 +4,29 @@
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ACMI Works embeddings</title>
+    <title>ACMI Works explorer</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles/index.css') }}">
 </head>
 <body>
-    <h1><a href="/">Works embeddings</a></h1>
-    <h2>Click on a Work to see related works</h2>
+    <header>
+        <a href="/"><img src="{{ url_for('static', filename='images/acmi-white.svg') }}" alt="ACMI works explorer - tap to reload" title="ACMI works explorer - tap to reload"></a>
+    </header>
     <ol>
     {% for embedding in embeddings %}
-        <li id="{{ embedding.work }}">
-            <p>
-                <a href="/?work={{ embedding.work }}"></a>
-                {% if embedding.distance %}
-                 (distance: {{ '%0.3f' % embedding.distance|float }})
-                {% endif %}
+        <li id="{{ embedding.work }}" class="{% if request.args.work %}{% if loop.index0 %}{% else %}selected{% endif %}{% endif %}">
+            <a href="/?work={{ embedding.work }}"><div class="image"></div></a>
+            <p class="title">
+                <a href="/?work={{ embedding.work }}">Loading...</a>
             </p>
+            {% if embedding.distance %}
+                <p class="distance">{{ embedding.distance|format_distance }}% match</p>
+            {% endif %}
         </li>
     {% endfor %}
     </ol>
+    <footer>
+        <p><a href="/"><img src="{{ url_for('static', filename='images/refresh.svg') }}" alt="Tap to reload a new selection of works" title="Tap to reload a new selection of works"></a></p>
+    </footer>
 </body>
 </html>
 
@@ -35,22 +40,17 @@
             return response.json();
         }).then(function(data) {
             if (data.title) {
-                const paragraph = document.createElement("p");
-                const website = document.createElement("a");
-                paragraph.appendChild(website);
-                website.href = `https://www.acmi.net.au/works/${data.id}--${data.slug}/`;
-                website.innerText = 'ACMI website';
-                element.getElementsByTagName("a")[0].append(` ${data.title}`);
+                element.getElementsByTagName('a')[1].innerText = ` ${data.title}`;
                 if (data.thumbnail) {
-                    const link = document.createElement("a");
+                    const link = document.createElement('a');
                     link.href = `/?work=${data.id}`;
-                    const image = document.createElement("img");
-                    image.src = data.thumbnail.image_url;
+                    const image = element.getElementsByClassName('image')[0];
+                    image.style.backgroundImage = `url(${data.thumbnail.image_url})`;
+                    image.style.backgroundRepeat = 'no-repeat';
+                    image.style.backgroundSize = 'cover';
+                    image.style.backgroundPosition = 'center';
                     image.title = data.title;
                     image.alt = data.title;
-                    image.width = 100;
-                    link.appendChild(image);
-                    element.appendChild(link);
                 }
                 element.appendChild(paragraph);
             }

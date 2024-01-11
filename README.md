@@ -4,14 +4,15 @@ A recommendation engine for Works in the ACMI Collection using [OpenAI embedding
 
 ![ACMI Works Embeddings CI](https://github.com/ACMILabs/works-embeddings/workflows/ACMI%20Works%20Embeddings%20CI/badge.svg)
 
-<img src="works-embeddings-v1.gif" width="100%" alt="ACMI Works embeddings running" title="ACMI Works embeddings running" />
+<img src="works-explorer-home-v2.png" width="50%" alt="ACMI Works explorer frontend" title="ACMI Works explorer frontend" /><img src="works-explorer-home-json-v2.png" width="50%" alt="ACMI Works explorer JSON server" title="ACMI Works explorer JSON server" />
 
 ## Use
 
 * Connect to your ACMI VPN to access XOS private APIs (or point to your own API)
 * Copy the `config.tmpl.env` file to `config.env`
+* Set `DEFAULT_TEMPLATE_JSON=false` if you'd like to see HTML results rather than JSON results
 * Start your environment: `make up`
-* Click a work to get its nearest neighbours: http://localhost:8081
+* Click a work to get its nearest neighbours: http://localhost:8081/?json=false
 
 ### Rebuild the Chroma database from your Embeddings API
 
