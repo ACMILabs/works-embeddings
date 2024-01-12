@@ -7,7 +7,7 @@ body {
 
 header {
     max-width: 30vw;
-    margin: 0 auto 4rem auto;
+    margin: 1rem auto 4rem auto;
     transition: opacity 0.3s;
 }
 
@@ -50,11 +50,15 @@ li.selected {
     width: 12rem;
 }
 
-li.selected .image {
+li.selected a .image {
     width: 12rem;
     height: 12rem;
     border-radius: 6rem;
-    outline-color: #e66465;
+    outline: 4px solid #e66465;
+}
+
+li.selected a .image:hover {
+    outline-color: grey;
 }
 
 a {
@@ -64,6 +68,24 @@ a {
 
 a:hover {
     text-decoration: underline;
+}
+
+h1, h2, h3 {
+    font-size: 1.5rem;
+    font-weight: 500;
+    margin: 0 0 0.3rem 0;
+    padding: 0;
+}
+
+h2, h3 {
+    font-size: 1.1rem;
+    margin-bottom: 0.5rem;
+    opacity: 0.6;
+}
+
+h3 {
+    font-size: 0.8rem;
+    margin-bottom: 1.5rem;
 }
 
 .image {
@@ -85,6 +107,7 @@ a:hover {
 .title {
     opacity: 0.8;
     margin-bottom: 0;
+    line-height: 1.3rem;
 }
 
 .distance {
@@ -92,6 +115,75 @@ a:hover {
     font-size: 0.8rem;
     margin-top: 0.5rem;
     margin-bottom: 0;
+}
+
+.info {
+    width: 1.5rem;
+    position: relative;
+    top: 0.4rem;
+    margin: 0 0.25rem;
+}
+
+.info:hover {
+    opacity: 0.8;
+}
+
+.info-modal {
+    opacity: 0;
+    width: 100vw;
+    height: 100vh;
+    position: absolute;
+    top: 0;
+    left: 0;
+    background-color: rgba(40, 40, 40, 0.9);
+    pointer-events: none;
+    z-index: 10;
+    transition: opacity 0.3s;
+}
+
+.info-modal .container {
+    background-color: white;
+    color: black;
+    max-width: 40rem;
+    margin: 6rem auto;
+    padding: 1.5rem;
+    border-radius: 0.25rem;
+    text-align: left;
+}
+
+.container .image {
+    width: 18rem;
+    height: 18rem;
+    border-radius: 0.25rem;
+    outline: none;
+}
+
+.container .image:hover {
+    opacity: 1;
+}
+
+.description {
+    line-height: 1.6rem;
+}
+
+.container .distance {
+    margin-bottom: 1.5rem;
+    color: #e66465;
+    opacity: 1;
+}
+
+.close {
+    float: right;
+    opacity: 1;
+    transition: opacity 0.3s;
+}
+
+.close img {
+    width: 3rem;
+}
+
+.close:hover {
+    opacity: 0.8;
 }
 
 @media (max-width: 641px) {
