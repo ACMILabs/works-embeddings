@@ -4,24 +4,43 @@
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ACMI Works embeddings</title>
+    <title>ACMI Works explorer</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles/index.css') }}">
 </head>
 <body>
-    <h1><a href="/">Works embeddings</a></h1>
-    <h2>Click on a Work to see related works</h2>
+    <header>
+        <a href="/"><img src="{{ url_for('static', filename='images/acmi-white.svg') }}" alt="ACMI works explorer - tap to reload" title="ACMI works explorer - tap to reload"></a>
+    </header>
     <ol>
     {% for embedding in embeddings %}
-        <li id="{{ embedding.work }}">
-            <p>
-                <a href="/?work={{ embedding.work }}"></a>
-                {% if embedding.distance %}
-                 (distance: {{ '%0.3f' % embedding.distance|float }})
-                {% endif %}
+        <li id="{{ embedding.work }}" class="{% if request.args.work %}{% if loop.index0 %}{% else %}selected{% endif %}{% endif %}">
+            <a href="/?work={{ embedding.work }}"><div class="image"></div></a>
+            <p class="title">
+                <a href="/?work={{ embedding.work }}">Loading...</a> {% if not embedding.distance %}<br><a href="#"><img class="info" src="{{ url_for('static', filename='images/info.svg') }}" alt="More information about this work" title="More information about this work"></a>{% endif %}
             </p>
+            {% if embedding.distance %}
+                <p class="distance">{{ embedding.distance|format_distance }}% match <a href="#"><img class="info" src="{{ url_for('static', filename='images/info.svg') }}" alt="More information about this work" title="More information about this work"></a></p>
+            {% endif %}
+            <!-- More information -->
+            <div class="info-modal">
+                <div class="container">
+                    <span class="close"><a href="#"><img src="{{ url_for('static', filename='images/close.svg') }}" alt="Close this popup" title="Close this popup"></a></span>
+                    <div class="image"></div>
+                    <h1>Title...</h1>
+                    <h2>Sub-title...</h2>
+                    <h3>Creators...</h3>
+                    {% if embedding.distance %}
+                        <p class="distance"><strong>{{ embedding.distance|format_distance }}% match</strong> algorithmically with the selected work.</p>
+                    {% endif %}
+                    <span class="description"></span>
+                </div>
+            </div>
         </li>
     {% endfor %}
     </ol>
+    <footer>
+        <p><a href="/"><img src="{{ url_for('static', filename='images/refresh.svg') }}" alt="Tap to reload a new selection of works" title="Tap to reload a new selection of works"></a></p>
+    </footer>
 </body>
 </html>
 
@@ -29,30 +48,45 @@
     const works = document.getElementsByTagName('li');
     for (let index = 0; index < works.length; index++) {
         const element = works[index];
+        // Show modal when info image is tapped
+        const elementModal = element.getElementsByClassName('info-modal')[0];
+        const elementInfoButton = element.getElementsByClassName('info')[0];
+        if (elementModal && elementInfoButton) {
+            elementInfoButton.addEventListener('click', function (event) {
+                elementModal.style.opacity = 1;
+                elementModal.style.pointerEvents = 'all';
+            });
+            elementModal.addEventListener('click', function (event) {
+                elementModal.style.opacity = 0;
+                elementModal.style.pointerEvents = 'none';
+            });
+        }
+
+        // Fetch work information
         fetch(`/works/${element.id}/`, {
             method: 'get'
         }).then(function(response) {
             return response.json();
         }).then(function(data) {
             if (data.title) {
-                const paragraph = document.createElement("p");
-                const website = document.createElement("a");
-                paragraph.appendChild(website);
-                website.href = `https://www.acmi.net.au/works/${data.id}--${data.slug}/`;
-                website.innerText = 'ACMI website';
-                element.getElementsByTagName("a")[0].append(` ${data.title}`);
+                element.getElementsByTagName('a')[1].innerText = ` ${data.title}`;
+                element.getElementsByTagName('h1')[0].innerText = data.title;
+                element.getElementsByTagName('h2')[0].innerText = data.headline_credit;
+                element.getElementsByTagName('h3')[0].innerText = data.creator_credit;
+                element.getElementsByClassName('description')[0].innerHTML = data.description_for_label;
                 if (data.thumbnail) {
-                    const link = document.createElement("a");
+                    const link = document.createElement('a');
                     link.href = `/?work=${data.id}`;
-                    const image = document.createElement("img");
-                    image.src = data.thumbnail.image_url;
-                    image.title = data.title;
-                    image.alt = data.title;
-                    image.width = 100;
-                    link.appendChild(image);
-                    element.appendChild(link);
+                    const images = element.getElementsByClassName('image');
+                    for (const image of images) {
+                        image.style.backgroundImage = `url(${data.thumbnail.image_url})`;
+                        image.style.backgroundRepeat = 'no-repeat';
+                        image.style.backgroundSize = 'cover';
+                        image.style.backgroundPosition = 'center';
+                        image.title = data.title;
+                        image.alt = data.title;
+                    }
                 }
-                element.appendChild(paragraph);
             }
         }).catch(function(err) {
             // Error

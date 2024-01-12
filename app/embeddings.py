@@ -12,9 +12,18 @@ XOS_RETRIES = int(os.getenv('XOS_RETRIES', '1'))
 XOS_TIMEOUT = int(os.getenv('XOS_TIMEOUT', '60'))
 DATABASE_PATH = os.getenv('DATABASE_PATH', '')
 PORT = int(os.getenv('PORT', '8081'))
+DEFAULT_TEMPLATE_JSON = os.getenv('DEFAULT_TEMPLATE_JSON', 'true').lower()
 
 application = Flask(__name__)
 CHROMA = None
+
+
+@application.template_filter('format_distance')
+def format_distance(value):
+    """
+    Format the vector distance between embeddings to a percentage.
+    """
+    return int((1 - value) * 100)
 
 
 @application.route('/')
@@ -25,7 +34,7 @@ def home():
     results = None
     filtered_embeddings = CHROMA.embeddings
 
-    json = request.args.get('json', 'true').lower() == 'true'
+    json = request.args.get('json', DEFAULT_TEMPLATE_JSON).lower() == 'true'
     work = request.args.get('work', None)
     size = int(request.args.get('size', '11'))
 

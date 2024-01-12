@@ -8,4 +8,4 @@ def test_root():
     with application.test_client() as client:
         response = client.get('/?json=false')
         assert response.status_code == 200
-        assert 'Works embeddings' in response.text
+        assert 'ACMI works explorer' in response.text

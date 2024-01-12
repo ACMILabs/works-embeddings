@@ -61,6 +61,7 @@ jobs:
 
   build-embeddings-latest:
     if: github.ref == 'refs/heads/main'
+    needs: [build-and-test-python]
     runs-on: ubuntu-latest
 
     steps:
@@ -86,7 +87,7 @@ jobs:
         uses: andymckay/cancel-action@0.2
 
   deploy:
-    needs: [build-embeddings-latest, build-and-test-python]
+    needs: [build-and-test-python, build-embeddings-latest]
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
