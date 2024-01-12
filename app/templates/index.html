@@ -16,11 +16,25 @@
         <li id="{{ embedding.work }}" class="{% if request.args.work %}{% if loop.index0 %}{% else %}selected{% endif %}{% endif %}">
             <a href="/?work={{ embedding.work }}"><div class="image"></div></a>
             <p class="title">
-                <a href="/?work={{ embedding.work }}">Loading...</a>
+                <a href="/?work={{ embedding.work }}">Loading...</a> {% if not embedding.distance %}<br><a href="#"><img class="info" src="{{ url_for('static', filename='images/info.svg') }}" alt="More information about this work" title="More information about this work"></a>{% endif %}
             </p>
             {% if embedding.distance %}
-                <p class="distance">{{ embedding.distance|format_distance }}% match</p>
+                <p class="distance">{{ embedding.distance|format_distance }}% match <a href="#"><img class="info" src="{{ url_for('static', filename='images/info.svg') }}" alt="More information about this work" title="More information about this work"></a></p>
             {% endif %}
+            <!-- More information -->
+            <div class="info-modal">
+                <div class="container">
+                    <span class="close"><a href="#"><img src="{{ url_for('static', filename='images/close.svg') }}" alt="Close this popup" title="Close this popup"></a></span>
+                    <div class="image"></div>
+                    <h1>Title...</h1>
+                    <h2>Sub-title...</h2>
+                    <h3>Creators...</h3>
+                    {% if embedding.distance %}
+                        <p class="distance"><strong>{{ embedding.distance|format_distance }}% match</strong> algorithmically with the selected work.</p>
+                    {% endif %}
+                    <span class="description"></span>
+                </div>
+            </div>
         </li>
     {% endfor %}
     </ol>
@@ -34,6 +48,21 @@
     const works = document.getElementsByTagName('li');
     for (let index = 0; index < works.length; index++) {
         const element = works[index];
+        // Show modal when info image is tapped
+        const elementModal = element.getElementsByClassName('info-modal')[0];
+        const elementInfoButton = element.getElementsByClassName('info')[0];
+        if (elementModal && elementInfoButton) {
+            elementInfoButton.addEventListener('click', function (event) {
+                elementModal.style.opacity = 1;
+                elementModal.style.pointerEvents = 'all';
+            });
+            elementModal.addEventListener('click', function (event) {
+                elementModal.style.opacity = 0;
+                elementModal.style.pointerEvents = 'none';
+            });
+        }
+
+        // Fetch work information
         fetch(`/works/${element.id}/`, {
             method: 'get'
         }).then(function(response) {
@@ -41,18 +70,23 @@
         }).then(function(data) {
             if (data.title) {
                 element.getElementsByTagName('a')[1].innerText = ` ${data.title}`;
+                element.getElementsByTagName('h1')[0].innerText = data.title;
+                element.getElementsByTagName('h2')[0].innerText = data.headline_credit;
+                element.getElementsByTagName('h3')[0].innerText = data.creator_credit;
+                element.getElementsByClassName('description')[0].innerHTML = data.description_for_label;
                 if (data.thumbnail) {
                     const link = document.createElement('a');
                     link.href = `/?work=${data.id}`;
-                    const image = element.getElementsByClassName('image')[0];
-                    image.style.backgroundImage = `url(${data.thumbnail.image_url})`;
-                    image.style.backgroundRepeat = 'no-repeat';
-                    image.style.backgroundSize = 'cover';
-                    image.style.backgroundPosition = 'center';
-                    image.title = data.title;
-                    image.alt = data.title;
+                    const images = element.getElementsByClassName('image');
+                    for (const image of images) {
+                        image.style.backgroundImage = `url(${data.thumbnail.image_url})`;
+                        image.style.backgroundRepeat = 'no-repeat';
+                        image.style.backgroundSize = 'cover';
+                        image.style.backgroundPosition = 'center';
+                        image.title = data.title;
+                        image.alt = data.title;
+                    }
                 }
-                element.appendChild(paragraph);
             }
         }).catch(function(err) {
             // Error
