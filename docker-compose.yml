@@ -1,7 +1,6 @@
 version: "2.1"
 
 volumes:
-  code:
   settings:
 
 services:
@@ -14,14 +13,12 @@ services:
     hostname: embeddings
     container_name: embeddings
     env_file: ./config.env
-    volumes:
-      - code:/code
     ports:
      - 8081:8081
   browser:
     depends_on: [embeddings]
     restart: always
-    image: bh.cr/balenalabs/browser-aarch64 # where <arch> is one of aarch64, arm32 or amd64
+    image: bh.cr/balenalabs/browser-amd64 # where <arch> is one of aarch64, arm32 or amd64
     privileged: true # required for UDEV to find plugged in peripherals such as a USB mouse
     ports:
         - '5011' # management API (optional)
