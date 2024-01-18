@@ -25,14 +25,18 @@
             <div class="info-modal">
                 <div class="container">
                     <span class="close"><a href="#"><img src="{{ url_for('static', filename='images/close.svg') }}" alt="Close this popup" title="Close this popup"></a></span>
-                    <div class="image"></div>
-                    <h1>Title...</h1>
-                    <h2>Sub-title...</h2>
-                    <h3>Creators...</h3>
-                    {% if embedding.distance %}
-                        <p class="distance"><strong>{{ embedding.distance|format_distance }}% match</strong> algorithmically with the selected work.</p>
-                    {% endif %}
-                    <span class="description"></span>
+                    <div class="left">
+                        <div class="image"></div>
+                        <h1>Title...</h1>
+                        <h2>Sub-title...</h2>
+                        <h3>Creators...</h3>
+                    </div>
+                    <div class="right">
+                        {% if embedding.distance %}
+                            <p class="distance"><strong>{{ embedding.distance|format_distance }}% algorithmic match</strong> with the selected work.</p>
+                        {% endif %}
+                        <span class="description"></span>
+                    </div>
                 </div>
             </div>
         </li>
@@ -51,14 +55,17 @@
         // Show modal when info image is tapped
         const elementModal = element.getElementsByClassName('info-modal')[0];
         const elementInfoButton = element.getElementsByClassName('info')[0];
+        const elementCloseButton = element.getElementsByClassName('close')[0];
         if (elementModal && elementInfoButton) {
             elementInfoButton.addEventListener('click', function (event) {
+                elementModal.style.zIndex = 10;
                 elementModal.style.opacity = 1;
-                elementModal.style.pointerEvents = 'all';
+                event.preventDefault();
             });
-            elementModal.addEventListener('click', function (event) {
+            elementCloseButton.addEventListener('click', function (event) {
                 elementModal.style.opacity = 0;
-                elementModal.style.pointerEvents = 'none';
+                elementModal.style.zIndex = -1;
+                event.preventDefault();
             });
         }
 
