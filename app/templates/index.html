@@ -4,22 +4,44 @@
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ACMI Works explorer</title>
+    <title>ACMI Collections explorer</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles/index.css') }}">
 </head>
 <body>
     <header>
-        <a href="/"><img src="{{ url_for('static', filename='images/acmi-white.svg') }}" alt="ACMI works explorer - tap to reload" title="ACMI works explorer - tap to reload"></a>
+        <h1 class="{% if request.args.work %}selected{% endif %}"><a href="/">Collections explorer</a></h1>
+        <a href="#" onclick="openApplicationInformation()"><img class="info app" src="{{ url_for('static', filename='images/info.svg') }}" alt="More information about the Collections explorer" title="More information about the Collections explorer"></a>
+        {% if request.args.work %}
+            <a href="#" onclick="goBack()">
+                <img class="back" src="{{ url_for('static', filename='images/back.svg') }}" alt="Return to the previous page" title="Return to the previous page">
+            </a>
+        {% endif %}
+        <div class="info-modal">
+            <div class="container">
+                <span class="close"><a href="#"><img src="{{ url_for('static', filename='images/close.svg') }}" alt="Close this popup" title="Close this popup"></a></span>
+                <div class="left">
+                    <h1>What is the collections explorer?</h1>
+                    <h2>A way to explore the ACMI collection when you don't know what you're looking for</h2>
+                    <span class="description">
+                        <p>We're always looking for new ways to increase discoverability and access to our collection. The recent development of large language models has created new ways of doing this, encoding human language into a format that's easy for computers to work with. One of those formats are embeddings.</p>
+                        <p>Embeddings are a way of representing <strong>words</strong> as a list of <strong>numbers</strong>.</p>
+                        <p>It means that you can encode a human readable word like hello into something that a computer can use to quickly compare to lots of other words and show you similar words.</p>
+                        <p>This collection explorer uses embeddings to show you algorithmically related works when you tap on a work.</p>
+                        <p>Read more about it at: <strong>labs.acmi.net.au</strong></p>
+                    </span>
+                </div>
+            </div>
+        </div>
     </header>
-    <ol>
+    <ol class="{% if request.args.work %}selected{% endif %}">
     {% for embedding in embeddings %}
         <li id="{{ embedding.work }}" class="{% if request.args.work %}{% if loop.index0 %}{% else %}selected{% endif %}{% endif %}">
             <a href="/?work={{ embedding.work }}"><div class="image"></div></a>
             <p class="title">
-                <a href="/?work={{ embedding.work }}">Loading...</a> {% if not embedding.distance %}<br><a href="#"><img class="info" src="{{ url_for('static', filename='images/info.svg') }}" alt="More information about this work" title="More information about this work"></a>{% endif %}
+                <a href="/?work={{ embedding.work }}">Loading...</a>
             </p>
-            {% if embedding.distance %}
-                <p class="distance">{{ embedding.distance|format_distance }}% match <a href="#"><img class="info" src="{{ url_for('static', filename='images/info.svg') }}" alt="More information about this work" title="More information about this work"></a></p>
+            {% if embedding.distance and not request.args.work %}
+                <p class="distance">{{ embedding.distance|format_distance }}% match </p>
             {% endif %}
             <!-- More information -->
             <div class="info-modal">
@@ -49,24 +71,36 @@
 </html>
 
 <script defer>
+    function showModal(event) {
+        const elementModal = event.currentTarget.getElementsByClassName('info-modal')[0];
+        elementModal.style.zIndex = 10;
+        elementModal.style.opacity = 1;
+        event.preventDefault();
+        event.currentTarget.removeEventListener('click', showModal);
+    }
+
+    function closeModal(event) {
+        const elementModal = event.currentTarget.parentElement.parentElement;
+        elementModal.style.opacity = 0;
+        elementModal.style.zIndex = -1;
+        event.preventDefault();
+        event.stopPropagation();
+        if (elementModal.parentElement.className === 'selected') {
+            elementModal.parentElement.addEventListener('click', showModal);
+        }
+    }
+
     const works = document.getElementsByTagName('li');
     for (let index = 0; index < works.length; index++) {
         const element = works[index];
         // Show modal when info image is tapped
         const elementModal = element.getElementsByClassName('info-modal')[0];
-        const elementInfoButton = element.getElementsByClassName('info')[0];
         const elementCloseButton = element.getElementsByClassName('close')[0];
-        if (elementModal && elementInfoButton) {
-            elementInfoButton.addEventListener('click', function (event) {
-                elementModal.style.zIndex = 10;
-                elementModal.style.opacity = 1;
-                event.preventDefault();
-            });
-            elementCloseButton.addEventListener('click', function (event) {
-                elementModal.style.opacity = 0;
-                elementModal.style.zIndex = -1;
-                event.preventDefault();
-            });
+        if (elementModal) {
+            if (element.className === 'selected') {
+                element.addEventListener('click', showModal);
+            }
+            elementCloseButton.addEventListener('click', closeModal);
         }
 
         // Fetch work information
@@ -99,5 +133,24 @@
             // Error
             console.log(err);
         });
+    }
+
+    function openApplicationInformation() {
+        const element = document.getElementsByTagName('header')[0];
+        const applicationInfromationModal = element.getElementsByClassName('info-modal')[0];
+        const elementCloseButton = element.getElementsByClassName('close')[0];
+        applicationInfromationModal.style.zIndex = 10;
+        applicationInfromationModal.style.opacity = 1;
+        event.preventDefault();
+        elementCloseButton.addEventListener('click', function (event) {
+            applicationInfromationModal.style.opacity = 0;
+            applicationInfromationModal.style.zIndex = -1;
+            event.preventDefault();
+        });
+    }
+
+    function goBack() {
+        history.back()
+        event.preventDefault();
     }
 </script>
