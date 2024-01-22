@@ -23,16 +23,23 @@ header .back {
     left: 0;
 }
 
+.qrcode {
+    float: right;
+    margin-left: 2rem;
+    width: 20rem;
+}
+
 footer {
     position: fixed;
     bottom: 0;
-    right: 0;
+    left: calc(50% - 2rem);
     width: 4rem;
-    margin: 1rem 2rem;
+    margin: 0 auto;
 }
 
 footer img {
     width: 4rem;
+    margin-left: -0.6rem;
     transition: opacity 0.3s;
     opacity: 0.6;
 }
