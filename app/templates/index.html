@@ -10,15 +10,15 @@
 <body>
     <header>
         <h1 class="{% if request.args.work %}selected{% endif %}"><a href="/">Collections explorer</a></h1>
-        <a href="#" onclick="openApplicationInformation()"><img class="info app" src="{{ url_for('static', filename='images/info.svg') }}" alt="More information about the Collections explorer" title="More information about the Collections explorer"></a>
+        <a href="#appinfo" onclick="openApplicationInformation()"><img class="info app" src="{{ url_for('static', filename='images/info.svg') }}" alt="More information about the Collections explorer" title="More information about the Collections explorer"></a>
         {% if request.args.work %}
-            <a href="#" onclick="goBack()">
+            <a href="#back" onclick="goBack()">
                 <img class="back" src="{{ url_for('static', filename='images/back.svg') }}" alt="Return to the previous page" title="Return to the previous page">
             </a>
         {% endif %}
         <div class="info-modal">
             <div class="container">
-                <span class="close"><a href="#"><img src="{{ url_for('static', filename='images/close.svg') }}" alt="Close this popup" title="Close this popup"></a></span>
+                <span class="close"><a href="#close"><img src="{{ url_for('static', filename='images/close.svg') }}" alt="Close this popup" title="Close this popup"></a></span>
                 <div>
                     <h1>What is the collections explorer?</h1>
                     <h2>A way to explore the ACMI collection when you don't know what you're looking for</h2>
@@ -47,7 +47,7 @@
             <!-- More information -->
             <div class="info-modal">
                 <div class="container">
-                    <span class="close"><a href="#"><img src="{{ url_for('static', filename='images/close.svg') }}" alt="Close this popup" title="Close this popup"></a></span>
+                    <span class="close"><a href="#close"><img src="{{ url_for('static', filename='images/close.svg') }}" alt="Close this popup" title="Close this popup"></a></span>
                     <div class="left">
                         <div class="image"></div>
                         <h1>Title...</h1>
@@ -111,6 +111,10 @@
             return response.json();
         }).then(function(data) {
             if (data.title) {
+                if (element.className === 'selected') {
+                    const bodyTitle = document.getElementsByTagName('title')[0];
+                    bodyTitle.innerHTML = `Collections explorer - ${data.id} - ${data.title}`;
+                }
                 element.getElementsByTagName('a')[1].innerText = ` ${data.title}`;
                 element.getElementsByTagName('h1')[0].innerText = data.title;
                 element.getElementsByTagName('h2')[0].innerText = data.headline_credit;
@@ -151,9 +155,20 @@
     }
 
     function goBack() {
-        history.back()
+        history.back();
         event.preventDefault();
     }
+
+    document.querySelectorAll('a').forEach(function(anchor) {
+        anchor.addEventListener('click', function(event) {
+            gtag('event', 'click', {
+                'event_category': 'Link',
+                'event_label': this.href,
+                'value': 1.0,
+                'currency': 'AUD',
+            });
+        });
+    });
 </script>
 
 <!-- Google tag (gtag.js) -->
