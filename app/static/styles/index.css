@@ -90,6 +90,7 @@ a:hover {
 header h1 {
     font-size: 5rem;
     text-align: center;
+    margin-top: 8rem;
     margin-bottom: 4rem;
 }
 
@@ -107,6 +108,7 @@ header .info-modal h1 {
     font-size: 3rem;
     text-align: left;
     margin-bottom: 1rem;
+    margin-top: 0;
 }
 
 header .info-modal h2 {
@@ -265,13 +267,14 @@ h3 {
 @media (max-width: 1224px) {
     header {
         max-width: 50vw;
-        margin-bottom: 2rem;
-        margin-top: 2rem;
+        margin: 2rem auto;
     }
 
     header h1 {
-        font-size: 2rem;
+        font-size: 2.5rem;
         text-align: center;
+        margin-top: 0;
+        margin-bottom: 1rem;
     }
 
     header .info,
@@ -303,6 +306,7 @@ h3 {
         padding: 1rem;
         width: calc(100% - 4rem);
         height: calc(100% - 4rem);
+        overflow-x: hidden;
     }
 
     .left, .right {

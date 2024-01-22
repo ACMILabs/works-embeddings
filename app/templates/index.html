@@ -19,7 +19,7 @@
         <div class="info-modal">
             <div class="container">
                 <span class="close"><a href="#"><img src="{{ url_for('static', filename='images/close.svg') }}" alt="Close this popup" title="Close this popup"></a></span>
-                <div class="left">
+                <div>
                     <h1>What is the collections explorer?</h1>
                     <h2>A way to explore the ACMI collection when you don't know what you're looking for</h2>
                     <span class="description">
@@ -40,7 +40,7 @@
             <p class="title">
                 <a href="/?work={{ embedding.work }}">Loading...</a>
             </p>
-            {% if embedding.distance and not request.args.work %}
+            {% if embedding.distance and request.args.work %}
                 <p class="distance">{{ embedding.distance|format_distance }}% match </p>
             {% endif %}
             <!-- More information -->
