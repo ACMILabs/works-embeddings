@@ -9,7 +9,7 @@
 </head>
 <body>
     <header>
-        <h1 class="{% if request.args.work %}selected{% endif %}"><a href="/">Collections explorer</a></h1>
+        <h1 class="{% if request.args.work %}selected{% endif %}"><a href="/{% if request.args.json %}?json={{ request.args.json }}{% endif %}">Collections explorer</a></h1>
         <a href="#appinfo" onclick="openApplicationInformation()"><img class="info app" src="{{ url_for('static', filename='images/info.svg') }}" alt="More information about the Collections explorer" title="More information about the Collections explorer"></a>
         {% if request.args.work %}
             <a href="#back" onclick="goBack()">
@@ -38,9 +38,9 @@
     <ol class="{% if request.args.work %}selected{% endif %}">
     {% for embedding in embeddings %}
         <li id="{{ embedding.work }}" class="{% if request.args.work %}{% if loop.index0 %}{% else %}selected{% endif %}{% endif %}">
-            <a href="/?work={{ embedding.work }}"><div class="image"></div></a>
+            <a href="/?work={{ embedding.work }}{% if request.args.json %}&json={{ request.args.json }}{% endif %}"><div class="image"></div></a>
             <p class="title">
-                <a href="/?work={{ embedding.work }}">Loading...</a>
+                <a href="/?work={{ embedding.work }}{% if request.args.json %}&json={{ request.args.json }}{% endif %}">Loading...</a>
             </p>
             {% if embedding.distance and request.args.work %}
                 <p class="distance">{{ embedding.distance|format_distance }}% match </p>
@@ -67,7 +67,7 @@
     {% endfor %}
     </ol>
     <footer>
-        <p><a href="/"><img src="{{ url_for('static', filename='images/refresh.svg') }}" alt="Tap to reload a new selection of works" title="Tap to reload a new selection of works"></a></p>
+        <p><a href="/{% if request.args.json %}?json={{ request.args.json }}{% endif %}"><img src="{{ url_for('static', filename='images/refresh.svg') }}" alt="Tap to reload a new selection of works" title="Tap to reload a new selection of works"></a></p>
     </footer>
 </body>
 </html>
