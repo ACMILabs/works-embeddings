@@ -170,6 +170,54 @@
             });
         });
     });
+
+    // Setup timers
+    let wiggleTimer;
+    let inactivityTimer;
+
+    // Function to add wiggle class to a random li element
+    function addWiggle() {
+        const liElements = document.querySelectorAll('ol > li');
+        const randomIndex = Math.floor(Math.random() * liElements.length);
+        const selectedElement = liElements[randomIndex];
+        selectedElement.classList.add('wiggle');
+
+        // Remove the wiggle class after 1 second
+        setTimeout(() => {
+            selectedElement.classList.remove('wiggle');
+            resetWiggleTimer();
+        }, 1000);
+    }
+
+    function reloadHomepage() {
+        window.location.href = '/{% if request.args.json %}?json={{ request.args.json }}{% endif %}';
+    }
+
+    function resetWiggleTimer() {
+        clearTimeout(wiggleTimer);
+        wiggleTimer = setTimeout(addWiggle, 5000);
+    }
+
+    function resetInactivityTimer() {
+        clearTimeout(inactivityTimer);
+        inactivityTimer = setTimeout(reloadHomepage, 28000);
+    }
+
+    function resetTimers() {
+        resetWiggleTimer();
+        resetInactivityTimer();
+    }
+
+    // Event listeners for user actions
+    document.addEventListener('mousemove', resetTimers);
+    document.addEventListener('keypress', resetTimers);
+    document.addEventListener('scroll', resetTimers);
+    document.addEventListener('touchstart', resetTimers);
+
+    // Initialize the timers if a refresh timeout is set
+    {% if refresh_timeout > 0 %}
+        resetTimers();
+    {% endif %}
 </script>
 
 <!-- Google tag (gtag.js) -->
