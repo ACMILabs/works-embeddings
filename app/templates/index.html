@@ -218,6 +218,55 @@
     {% if refresh_timeout > 0 %}
         resetTimers();
     {% endif %}
+
+    // Fade in the page after it loads
+    window.onload = function() {
+        document.body.style.opacity = '1';
+    };
+
+    document.querySelectorAll('ol > li').forEach(li => {
+        li.addEventListener('click', function() {
+            if (this.classList.contains('selected')) {
+                // Do nothing if the work is currently selected
+                return;
+            }
+            // Else apply 'fade-out' to the header and other li elements
+            document.querySelector('header').classList.add('fade-out');
+            document.querySelectorAll('ol > li').forEach(el => {
+                if (el !== this) {
+                    el.classList.add('fade-out');
+                }
+            });
+            document.body.style.opacity = '0';
+
+            // Delay the navigation to allow the animation to complete
+            setTimeout(() => {
+                window.location.href = this.querySelector('a').href;
+            }, 500);
+        });
+    });
+
+    // Prevent default link behavior inside li elements so we can fade
+    document.querySelectorAll('ol > li a').forEach(anchor => {
+        anchor.addEventListener('click', function(event) {
+            event.preventDefault();
+        });
+    });
+
+    window.addEventListener('pageshow', function(event) {
+        if (event.persisted) {
+            // This means the page was loaded from the cache (e.g., Back button)
+            // Remove 'fade-out' class from all elements and reset opacity
+            document.body.style.opacity = '1';
+            document.querySelectorAll('.fade-out').forEach(el => {
+                el.classList.remove('fade-out');
+            });
+        } else {
+            // This is for normal page loads
+            document.body.style.opacity = '1';
+        }
+    });
+
 </script>
 
 <!-- Google tag (gtag.js) -->
