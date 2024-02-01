@@ -83,6 +83,7 @@ li {
     display: inline-block;
     margin: 2rem;
     width: 8.5rem;
+    min-height: 14rem;
     vertical-align: top;
 }
 
