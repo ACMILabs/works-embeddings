@@ -13,6 +13,7 @@ XOS_TIMEOUT = int(os.getenv('XOS_TIMEOUT', '60'))
 DATABASE_PATH = os.getenv('DATABASE_PATH', '')
 PORT = int(os.getenv('PORT', '8081'))
 DEFAULT_TEMPLATE_JSON = os.getenv('DEFAULT_TEMPLATE_JSON', 'true').lower()
+REFRESH_TIMEOUT = int(os.getenv('REFRESH_TIMEOUT', '0') or '0')
 
 application = Flask(__name__)
 CHROMA = None
@@ -60,6 +61,7 @@ def home():
         return render_template(
             'index.html',
             embeddings=filtered_embeddings,
+            refresh_timeout=REFRESH_TIMEOUT,
         )
 
     return jsonify(filtered_embeddings)
