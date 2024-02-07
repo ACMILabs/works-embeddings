@@ -42,6 +42,12 @@
             <p class="title">
                 <a href="/?work={{ embedding.work }}{% if request.args.json %}&json={{ request.args.json }}{% endif %}">Loading...</a>
             </p>
+            {% if request.args.work %}
+                {% if loop.index0 %}
+                {% else %}
+                    <p class="title-related">Algorithmically related works:</p>
+                {% endif %}
+            {% endif %}
             {% if embedding.distance and request.args.work %}
                 <p class="distance">{{ embedding.distance|format_distance }}% match </p>
             {% endif %}
@@ -67,7 +73,8 @@
     {% endfor %}
     </ol>
     <footer>
-        <p><a href="/{% if request.args.json %}?json={{ request.args.json }}{% endif %}"><img src="{{ url_for('static', filename='images/refresh.svg') }}" alt="Tap to reload a new selection of works" title="Tap to reload a new selection of works"></a></p>
+        <p><a href="/{% if request.args.json %}?json={{ request.args.json }}{% endif %}"><img src="{{ url_for('static', filename='images/refresh.svg') }}" alt="Tap to reload a new selection of works" title="Tap to reload a new selection of works"><br>Random</a></p>
+        <p class="prototype">Prototype in testing</p>
     </footer>
 </body>
 </html>
