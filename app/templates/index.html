@@ -137,6 +137,7 @@
                         }, 300);
                     }
                 }
+                limitWordCount('.title', 7);
             }
         }).catch(function(err) {
             // Error
@@ -283,6 +284,19 @@
     document.onmousedown = document.onselectstart = function() {
         return false;
     };
+
+    function limitWordCount(selector, wordLimit) {
+        const elements = document.querySelectorAll(selector);
+        elements.forEach(element => {
+            // Split the text into words
+            let text = element.innerText.split(/\s+/);
+            if (text.length > wordLimit) {
+                // Cut off at the limit and add ellipsis
+                text = text.slice(0, wordLimit).join(' ') + '...';
+                element.innerText = text;
+            }
+        });
+    }
 
 </script>
 
