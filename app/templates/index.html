@@ -82,7 +82,7 @@
     }
 
     function closeModal(event) {
-        const elementModal = event.currentTarget.parentElement.parentElement;
+        const elementModal = event.currentTarget;
         elementModal.style.opacity = 0;
         elementModal.style.zIndex = -1;
         event.preventDefault();
@@ -97,12 +97,11 @@
         const element = works[index];
         // Show modal when info image is tapped
         const elementModal = element.getElementsByClassName('info-modal')[0];
-        const elementCloseButton = element.getElementsByClassName('close')[0];
         if (elementModal) {
             if (element.className === 'selected') {
                 element.addEventListener('click', showModal);
             }
-            elementCloseButton.addEventListener('click', closeModal);
+            elementModal.addEventListener('click', closeModal);
         }
 
         // Fetch work information
@@ -144,11 +143,10 @@
     function openApplicationInformation() {
         const element = document.getElementsByTagName('header')[0];
         const applicationInfromationModal = element.getElementsByClassName('info-modal')[0];
-        const elementCloseButton = element.getElementsByClassName('close')[0];
         applicationInfromationModal.style.zIndex = 10;
         applicationInfromationModal.style.opacity = 1;
         event.preventDefault();
-        elementCloseButton.addEventListener('click', function (event) {
+        applicationInfromationModal.addEventListener('click', function (event) {
             applicationInfromationModal.style.opacity = 0;
             applicationInfromationModal.style.zIndex = -1;
             event.preventDefault();
@@ -178,15 +176,25 @@
     // Function to add wiggle class to a random li element
     function addWiggle() {
         const liElements = document.querySelectorAll('ol > li');
-        const randomIndex = Math.floor(Math.random() * liElements.length);
-        const selectedElement = liElements[randomIndex];
-        selectedElement.classList.add('wiggle');
+        const eligibleElements = Array.from(liElements).filter(li => {
+            const infoModal = li.querySelector('.info-modal');
+            // Get computed style to check if opacity is set through CSS
+            const style = window.getComputedStyle(infoModal);
+            return style.opacity != '1'; // Filter out if opacity is 1
+        });
 
-        // Remove the wiggle class after 1 second
-        setTimeout(() => {
-            selectedElement.classList.remove('wiggle');
-            resetWiggleTimer();
-        }, 1000);
+        if (eligibleElements.length > 0) {
+            // Only proceed if there are eligible elements
+            const randomIndex = Math.floor(Math.random() * eligibleElements.length);
+            const selectedElement = eligibleElements[randomIndex];
+            selectedElement.classList.add('wiggle');
+
+            // Remove the wiggle class after 1 second
+            setTimeout(() => {
+                selectedElement.classList.remove('wiggle');
+                resetWiggleTimer();
+            }, 1000);
+        }
     }
 
     function reloadHomepage() {
@@ -266,6 +274,11 @@
             document.body.style.opacity = '1';
         }
     });
+
+    // Prevent dragging
+    document.onmousedown = document.onselectstart = function() {
+        return false;
+    };
 
 </script>
 
