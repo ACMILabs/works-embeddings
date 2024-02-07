@@ -100,12 +100,20 @@ li.selected a .image {
     width: 16rem;
     height: 16rem;
     border-radius: 8rem;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+li.selected a .circle {
+    width: 16rem;
+    height: 16rem;
+    border-radius: 8rem;
     outline: 4px solid #e66465;
     margin-left: auto;
     margin-right: auto;
 }
 
-li.selected a .image:hover {
+li.selected a .circle:hover {
     outline-color: grey;
 }
 
@@ -169,20 +177,27 @@ h3 {
     line-height: 1.2rem;
 }
 
+.circle {
+    width: 8rem;
+    height: 8rem;
+    outline: 2px solid;
+    outline-offset: 0.6rem;
+    border-radius: 4rem;
+    margin-bottom: 1.5rem;
+}
+
+.circle:hover {
+    outline: 2px solid grey;
+    opacity: 0.8;
+}
+
 .image {
     width: 8rem;
     height: 8rem;
     background: linear-gradient(#e66465, #9198e5);
     border-radius: 4rem;
-    margin-bottom: 1.5rem;
-    outline: 2px solid;
-    outline-offset: 0.6rem;
-    transition: opacity 0.3s;
-}
-
-.image:hover {
-    outline: 2px solid grey;
-    opacity: 0.8;
+    transition: opacity 0.3s ease-in-out;
+    opacity: 1;
 }
 
 .title {
@@ -300,6 +315,10 @@ h3 {
 }
 
 @media (max-width: 1224px) {
+    body {
+        overflow-y: scroll;
+    }
+
     header {
         max-width: 50vw;
         margin: 2rem auto;
@@ -352,7 +371,7 @@ h3 {
         margin: -1rem -1rem -2rem 0;
     }
 
-    .image {
+    .circle, .image {
         width: 6rem;
         height: 6rem;
         border-radius: 3rem;

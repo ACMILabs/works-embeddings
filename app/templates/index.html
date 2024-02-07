@@ -38,7 +38,7 @@
     <ol class="{% if request.args.work %}selected{% endif %}">
     {% for embedding in embeddings %}
         <li id="{{ embedding.work }}" class="{% if request.args.work %}{% if loop.index0 %}{% else %}selected{% endif %}{% endif %}">
-            <a href="/?work={{ embedding.work }}{% if request.args.json %}&json={{ request.args.json }}{% endif %}"><div class="image"></div></a>
+            <a href="/?work={{ embedding.work }}{% if request.args.json %}&json={{ request.args.json }}{% endif %}"><div class="circle"><div class="image"></div></div></a>
             <p class="title">
                 <a href="/?work={{ embedding.work }}{% if request.args.json %}&json={{ request.args.json }}{% endif %}">Loading...</a>
             </p>
@@ -125,12 +125,16 @@
                     link.href = `/?work=${data.id}`;
                     const images = element.getElementsByClassName('image');
                     for (const image of images) {
-                        image.style.backgroundImage = `url(${data.thumbnail.image_url})`;
-                        image.style.backgroundRepeat = 'no-repeat';
-                        image.style.backgroundSize = 'cover';
-                        image.style.backgroundPosition = 'center';
-                        image.title = data.title;
-                        image.alt = data.title;
+                        image.style.opacity = '0';
+                        setTimeout(() => {
+                            image.style.backgroundImage = `url(${data.thumbnail.image_url})`;
+                            image.style.backgroundRepeat = 'no-repeat';
+                            image.style.backgroundSize = 'cover';
+                            image.style.backgroundPosition = 'center';
+                            image.title = data.title;
+                            image.alt = data.title;
+                            image.style.opacity = '1';
+                        }, 300);
                     }
                 }
             }
