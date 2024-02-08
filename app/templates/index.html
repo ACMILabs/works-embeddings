@@ -50,6 +50,8 @@
             {% endif %}
             {% if embedding.distance and request.args.work %}
                 <p class="distance">{{ embedding.distance|format_distance }}% match </p>
+            {% elif not request.args.work %}
+                <p class="distance">Tap to see matches </p>
             {% endif %}
             <!-- More information -->
             <div class="info-modal">
@@ -75,11 +77,12 @@
     <footer>
         <p><a href="/{% if request.args.json %}?json={{ request.args.json }}{% endif %}"><img src="{{ url_for('static', filename='images/refresh.svg') }}" alt="Tap to reload a new selection of works" title="Tap to reload a new selection of works"><br>Random</a></p>
         <p class="prototype">Prototype in testing</p>
+        <p class="collect-modal hidden">TAP YOUR LENS TO COLLECT</p>
     </footer>
 </body>
 </html>
 
-<script defer>
+<script>
     function showModal(event) {
         const elementModal = event.currentTarget.getElementsByClassName('info-modal')[0];
         elementModal.style.zIndex = 10;
@@ -191,8 +194,14 @@
         const eligibleElements = Array.from(liElements).filter(li => {
             const infoModal = li.querySelector('.info-modal');
             // Get computed style to check if opacity is set through CSS
-            const style = window.getComputedStyle(infoModal);
-            return style.opacity != '1'; // Filter out if opacity is 1
+            var eligable = false;
+            try {
+                const style = window.getComputedStyle(infoModal);
+                eligable = style.opacity != '1';
+            } catch (error) {
+                console.log(error);
+            }
+            return eligable;
         });
 
         if (eligibleElements.length > 0) {
@@ -281,6 +290,7 @@
             document.querySelectorAll('.fade-out').forEach(el => {
                 el.classList.remove('fade-out');
             });
+            setupMessaging();
         } else {
             // This is for normal page loads
             document.body.style.opacity = '1';
@@ -304,6 +314,45 @@
             }
         });
     }
+
+    const tapSource = new EventSource('/api/tap-source/');
+    var is_animating_collect = false;
+    function setupMessaging() {
+        tapSource.onmessage = function (event) {
+            const collectModal = document.getElementsByClassName('collect-modal')[0];
+            const event_data = JSON.parse(event.data);
+            const tap_successful = event_data.tap_successful;
+            console.log(`Tap message: ${event_data}`);
+
+            if (is_animating_collect) return;
+
+            is_animating_collect = true;
+            collectModal.className = 'collect-modal hidden';
+
+            if (tap_successful === 1) {
+                window.setTimeout(function () {
+                    collectModal.innerHTML = 'COLLECTED';
+                    collectModal.className = 'collect-modal';
+                }, 500);
+            } else if (tap_successful === 0) {
+                window.setTimeout(function () {
+                    collectModal.innerHTML = 'SELECT A WORK TO COLLECT IT';
+                    collectModal.className = 'collect-modal';
+                }, 500);
+            }
+
+            window.setTimeout(function () {
+                collectModal.className = 'collect-modal hidden';
+                is_animating_collect = false;
+            }, 3000);
+        };
+        tapSource.onerror = function (event) {
+            console.log(`Tap source error: ${event}`);
+            tapSource.close();
+            setupMessaging();
+        };
+    }
+    setupMessaging();
 
 </script>
 

@@ -78,6 +78,24 @@ footer .prototype {
     opacity: 0.5;
 }
 
+.collect-modal {
+    position: fixed;
+    bottom: 0;
+    right: 0;
+    padding: 2rem;
+    margin: 0;
+    background-color: white;
+    color: black;
+    transition: opacity 0.3s;
+    opacity: 1;
+    font-weight: bold;
+    font-size: 1.2rem;
+}
+
+.collect-modal.hidden {
+    opacity: 0;
+}
+
 ol {
     max-width: 80rem;
     margin: 0 auto;
