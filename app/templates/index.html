@@ -102,6 +102,34 @@
         }
     }
 
+    function getDescription(work_data) {
+        let description = work_data.description_for_label;
+        if (description.length == 0) {
+            description = work_data.brief_description;
+        }
+        if (description.length === 0) {
+            if (work_data.group) {
+                fetch(`/works/${work_data.group.id}/`, {
+                    method: 'get'
+                }).then(function(response) {
+                    return response.json();
+                }).then(function(data) {
+                    description = data.description_for_label;
+                    if (description.length == 0) {
+                        description = work_data.brief_description;
+                    }
+                }).catch(function(err) {
+                    // Error
+                    console.log(err);
+                });
+            }
+            if (description.length == 0) {
+                description = "Sorry, we don't have a description for this object.";
+            }
+        }
+        return description;
+    }
+
     const works = document.getElementsByTagName('li');
     for (let index = 0; index < works.length; index++) {
         const element = works[index];
@@ -129,7 +157,7 @@
                 element.getElementsByTagName('h1')[0].innerText = data.title;
                 element.getElementsByTagName('h2')[0].innerText = data.headline_credit;
                 element.getElementsByTagName('h3')[0].innerText = data.creator_credit;
-                element.getElementsByClassName('description')[0].innerHTML = data.description_for_label;
+                element.getElementsByClassName('description')[0].innerHTML = getDescription(data);
                 if (data.thumbnail) {
                     const link = document.createElement('a');
                     link.href = `/?work=${data.id}`;
