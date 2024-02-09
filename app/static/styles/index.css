@@ -90,6 +90,7 @@ footer .prototype {
     opacity: 1;
     font-weight: bold;
     font-size: 1.2rem;
+    z-index: 20;
 }
 
 .collect-modal.hidden {

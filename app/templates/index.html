@@ -77,8 +77,8 @@
     <footer>
         <p><a href="/{% if request.args.json %}?json={{ request.args.json }}{% endif %}"><img src="{{ url_for('static', filename='images/refresh.svg') }}" alt="Tap to reload a new selection of works" title="Tap to reload a new selection of works"><br>Random</a></p>
         <p class="prototype">Prototype in testing</p>
-        <p class="collect-modal hidden">TAP YOUR LENS TO COLLECT</p>
     </footer>
+    <p class="collect-modal hidden">TAP YOUR LENS TO COLLECT</p>
 </body>
 </html>
 
