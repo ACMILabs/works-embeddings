@@ -1,7 +1,9 @@
+import json
 import os
 import random
+import time
 import requests
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, jsonify, render_template, request, Response
 
 import chromadb
 
@@ -15,8 +17,13 @@ PORT = int(os.getenv('PORT', '8081'))
 DEFAULT_TEMPLATE_JSON = os.getenv('DEFAULT_TEMPLATE_JSON', 'true').lower()
 REFRESH_TIMEOUT = int(os.getenv('REFRESH_TIMEOUT', '0') or '0')
 
+LENS_READER_TAPS_API = os.getenv('LENS_READER_TAPS_API', None)
+AUTH_TOKEN = os.getenv('AUTH_TOKEN', None)
+
 application = Flask(__name__)
 CHROMA = None
+SELECTED_WORK_ID = None
+SUCCESSFUL_TAP = None
 
 
 @application.template_filter('format_distance')
@@ -35,11 +42,13 @@ def home():
     results = None
     filtered_embeddings = CHROMA.embeddings
 
-    json = request.args.get('json', DEFAULT_TEMPLATE_JSON).lower() == 'true'
+    json_response = request.args.get('json', DEFAULT_TEMPLATE_JSON).lower() == 'true'
     work = request.args.get('work', None)
     size = int(request.args.get('size', '11'))
 
     if work:
+        global SELECTED_WORK_ID  # pylint: disable=global-statement
+        SELECTED_WORK_ID = work
         for embedding in CHROMA.embeddings:
             if str(embedding['work']) == work:
                 result = CHROMA.collection.get(
@@ -56,8 +65,11 @@ def home():
                         filtered_embeddings.append(embedding)
     elif filtered_embeddings:
         filtered_embeddings = random.sample(filtered_embeddings, size)
+        SELECTED_WORK_ID = None
+    else:
+        SELECTED_WORK_ID = None
 
-    if not json:
+    if not json_response:
         return render_template(
             'index.html',
             embeddings=filtered_embeddings,
@@ -65,6 +77,74 @@ def home():
         )
 
     return jsonify(filtered_embeddings)
+
+
+def post_to_lens_reader(tap_data):
+    """
+    Post the tap back to the lens reader for queing to XOS.
+    """
+    global SUCCESSFUL_TAP  # pylint: disable=global-statement
+    headers = {
+        'Content-Type': 'application/json',
+        'Authorization': f'Token {AUTH_TOKEN}'
+    }
+    response = requests.post(
+        LENS_READER_TAPS_API,
+        headers=headers,
+        data=json.dumps(tap_data),
+        timeout=120,
+    )
+    if response.status_code == 201:
+        SUCCESSFUL_TAP = 1
+    else:
+        SUCCESSFUL_TAP = 0
+    print(f'Lens reader response: {response.json()}')
+
+
+def event_stream():
+    while True:
+        global SUCCESSFUL_TAP  # pylint: disable=global-statement
+        time.sleep(0.1)
+        if (SELECTED_WORK_ID and SUCCESSFUL_TAP is not None) or SUCCESSFUL_TAP is not None:
+            tap_event_message = f'data: {{ "tap_successful": {SUCCESSFUL_TAP} }}\n\n'
+            SUCCESSFUL_TAP = None
+            yield tap_event_message
+        else:
+            # Heartbeat to keep the connection alive
+            yield ':\n\n'
+
+
+if LENS_READER_TAPS_API:
+    @application.route('/api/taps/', methods=['GET', 'POST'])
+    def taps():
+        """
+        An API for adding the currently selected work -> label to a Tap.
+        """
+        global SUCCESSFUL_TAP  # pylint: disable=global-statement
+        tap_data = {'label': None}
+        if request.method == 'POST':
+            tap_data = request.get_json()
+
+        if SELECTED_WORK_ID:
+            xos = XOSAPI()
+            xos_response = xos.get(f'works/{SELECTED_WORK_ID}').json()
+            tap_data['label'] = xos_response['labels'][0]
+            post_to_lens_reader(tap_data)
+            return jsonify(tap_data)
+        SUCCESSFUL_TAP = 0
+        return jsonify({'error': 'Please select a Work first before tapping.'}), 400
+
+
+if LENS_READER_TAPS_API:
+    @application.route('/api/tap-source/')
+    def tap_source():
+        headers = {
+            'Cache-Control': 'no-cache',
+            'Connection': 'keep-alive',
+            'Content-Type': 'text/event-stream',
+            'X-Accel-Buffering': 'no',
+        }
+        return Response(event_stream(), headers=headers, mimetype='text/event-stream')
 
 
 if DEBUG:

@@ -38,12 +38,20 @@
     <ol class="{% if request.args.work %}selected{% endif %}">
     {% for embedding in embeddings %}
         <li id="{{ embedding.work }}" class="{% if request.args.work %}{% if loop.index0 %}{% else %}selected{% endif %}{% endif %}">
-            <a href="/?work={{ embedding.work }}{% if request.args.json %}&json={{ request.args.json }}{% endif %}"><div class="image"></div></a>
+            <a href="/?work={{ embedding.work }}{% if request.args.json %}&json={{ request.args.json }}{% endif %}"><div class="circle"><div class="image"></div></div></a>
             <p class="title">
                 <a href="/?work={{ embedding.work }}{% if request.args.json %}&json={{ request.args.json }}{% endif %}">Loading...</a>
             </p>
+            {% if request.args.work %}
+                {% if loop.index0 %}
+                {% else %}
+                    <p class="title-related">Algorithmically related works:</p>
+                {% endif %}
+            {% endif %}
             {% if embedding.distance and request.args.work %}
                 <p class="distance">{{ embedding.distance|format_distance }}% match </p>
+            {% elif not request.args.work %}
+                <p class="distance">Tap to see matches </p>
             {% endif %}
             <!-- More information -->
             <div class="info-modal">
@@ -67,12 +75,14 @@
     {% endfor %}
     </ol>
     <footer>
-        <p><a href="/{% if request.args.json %}?json={{ request.args.json }}{% endif %}"><img src="{{ url_for('static', filename='images/refresh.svg') }}" alt="Tap to reload a new selection of works" title="Tap to reload a new selection of works"></a></p>
+        <p><a href="/{% if request.args.json %}?json={{ request.args.json }}{% endif %}"><img src="{{ url_for('static', filename='images/refresh.svg') }}" alt="Tap to reload a new selection of works" title="Tap to reload a new selection of works"><br>Random</a></p>
+        <p class="prototype">Prototype in testing</p>
     </footer>
+    <p class="collect-modal hidden">TAP YOUR LENS TO COLLECT</p>
 </body>
 </html>
 
-<script defer>
+<script>
     function showModal(event) {
         const elementModal = event.currentTarget.getElementsByClassName('info-modal')[0];
         elementModal.style.zIndex = 10;
@@ -82,7 +92,7 @@
     }
 
     function closeModal(event) {
-        const elementModal = event.currentTarget.parentElement.parentElement;
+        const elementModal = event.currentTarget;
         elementModal.style.opacity = 0;
         elementModal.style.zIndex = -1;
         event.preventDefault();
@@ -92,17 +102,44 @@
         }
     }
 
+    function getDescription(work_data) {
+        let description = work_data.description_for_label;
+        if (description.length == 0) {
+            description = work_data.brief_description;
+        }
+        if (description.length === 0) {
+            if (work_data.group) {
+                fetch(`/works/${work_data.group.id}/`, {
+                    method: 'get'
+                }).then(function(response) {
+                    return response.json();
+                }).then(function(data) {
+                    description = data.description_for_label;
+                    if (description.length == 0) {
+                        description = work_data.brief_description;
+                    }
+                }).catch(function(err) {
+                    // Error
+                    console.log(err);
+                });
+            }
+            if (description.length == 0) {
+                description = "Sorry, we don't have a description for this object.";
+            }
+        }
+        return description;
+    }
+
     const works = document.getElementsByTagName('li');
     for (let index = 0; index < works.length; index++) {
         const element = works[index];
         // Show modal when info image is tapped
         const elementModal = element.getElementsByClassName('info-modal')[0];
-        const elementCloseButton = element.getElementsByClassName('close')[0];
         if (elementModal) {
             if (element.className === 'selected') {
                 element.addEventListener('click', showModal);
             }
-            elementCloseButton.addEventListener('click', closeModal);
+            elementModal.addEventListener('click', closeModal);
         }
 
         // Fetch work information
@@ -120,20 +157,25 @@
                 element.getElementsByTagName('h1')[0].innerText = data.title;
                 element.getElementsByTagName('h2')[0].innerText = data.headline_credit;
                 element.getElementsByTagName('h3')[0].innerText = data.creator_credit;
-                element.getElementsByClassName('description')[0].innerHTML = data.description_for_label;
+                element.getElementsByClassName('description')[0].innerHTML = getDescription(data);
                 if (data.thumbnail) {
                     const link = document.createElement('a');
                     link.href = `/?work=${data.id}`;
                     const images = element.getElementsByClassName('image');
                     for (const image of images) {
-                        image.style.backgroundImage = `url(${data.thumbnail.image_url})`;
-                        image.style.backgroundRepeat = 'no-repeat';
-                        image.style.backgroundSize = 'cover';
-                        image.style.backgroundPosition = 'center';
-                        image.title = data.title;
-                        image.alt = data.title;
+                        image.style.opacity = '0';
+                        setTimeout(() => {
+                            image.style.backgroundImage = `url(${data.thumbnail.image_url})`;
+                            image.style.backgroundRepeat = 'no-repeat';
+                            image.style.backgroundSize = 'cover';
+                            image.style.backgroundPosition = 'center';
+                            image.title = data.title;
+                            image.alt = data.title;
+                            image.style.opacity = '1';
+                        }, 300);
                     }
                 }
+                limitWordCount('.title', 7);
             }
         }).catch(function(err) {
             // Error
@@ -144,11 +186,10 @@
     function openApplicationInformation() {
         const element = document.getElementsByTagName('header')[0];
         const applicationInfromationModal = element.getElementsByClassName('info-modal')[0];
-        const elementCloseButton = element.getElementsByClassName('close')[0];
         applicationInfromationModal.style.zIndex = 10;
         applicationInfromationModal.style.opacity = 1;
         event.preventDefault();
-        elementCloseButton.addEventListener('click', function (event) {
+        applicationInfromationModal.addEventListener('click', function (event) {
             applicationInfromationModal.style.opacity = 0;
             applicationInfromationModal.style.zIndex = -1;
             event.preventDefault();
@@ -178,15 +219,31 @@
     // Function to add wiggle class to a random li element
     function addWiggle() {
         const liElements = document.querySelectorAll('ol > li');
-        const randomIndex = Math.floor(Math.random() * liElements.length);
-        const selectedElement = liElements[randomIndex];
-        selectedElement.classList.add('wiggle');
+        const eligibleElements = Array.from(liElements).filter(li => {
+            const infoModal = li.querySelector('.info-modal');
+            // Get computed style to check if opacity is set through CSS
+            var eligable = false;
+            try {
+                const style = window.getComputedStyle(infoModal);
+                eligable = style.opacity != '1';
+            } catch (error) {
+                console.log(error);
+            }
+            return eligable;
+        });
 
-        // Remove the wiggle class after 1 second
-        setTimeout(() => {
-            selectedElement.classList.remove('wiggle');
-            resetWiggleTimer();
-        }, 1000);
+        if (eligibleElements.length > 0) {
+            // Only proceed if there are eligible elements
+            const randomIndex = Math.floor(Math.random() * eligibleElements.length);
+            const selectedElement = eligibleElements[randomIndex];
+            selectedElement.classList.add('wiggle');
+
+            // Remove the wiggle class after 1 second
+            setTimeout(() => {
+                selectedElement.classList.remove('wiggle');
+                resetWiggleTimer();
+            }, 1000);
+        }
     }
 
     function reloadHomepage() {
@@ -261,11 +318,69 @@
             document.querySelectorAll('.fade-out').forEach(el => {
                 el.classList.remove('fade-out');
             });
+            setupMessaging();
         } else {
             // This is for normal page loads
             document.body.style.opacity = '1';
         }
     });
+
+    // Prevent dragging
+    document.onmousedown = document.onselectstart = function() {
+        return false;
+    };
+
+    function limitWordCount(selector, wordLimit) {
+        const elements = document.querySelectorAll(selector);
+        elements.forEach(element => {
+            // Split the text into words
+            let text = element.innerText.split(/\s+/);
+            if (text.length > wordLimit) {
+                // Cut off at the limit and add ellipsis
+                text = text.slice(0, wordLimit).join(' ') + '...';
+                element.innerText = text;
+            }
+        });
+    }
+
+    const tapSource = new EventSource('/api/tap-source/');
+    var is_animating_collect = false;
+    function setupMessaging() {
+        tapSource.onmessage = function (event) {
+            const collectModal = document.getElementsByClassName('collect-modal')[0];
+            const event_data = JSON.parse(event.data);
+            const tap_successful = event_data.tap_successful;
+            console.log(`Tap message: ${event_data}`);
+
+            if (is_animating_collect) return;
+
+            is_animating_collect = true;
+            collectModal.className = 'collect-modal hidden';
+
+            if (tap_successful === 1) {
+                window.setTimeout(function () {
+                    collectModal.innerHTML = 'COLLECTED';
+                    collectModal.className = 'collect-modal';
+                }, 500);
+            } else if (tap_successful === 0) {
+                window.setTimeout(function () {
+                    collectModal.innerHTML = 'SELECT A WORK TO COLLECT IT';
+                    collectModal.className = 'collect-modal';
+                }, 500);
+            }
+
+            window.setTimeout(function () {
+                collectModal.className = 'collect-modal hidden';
+                is_animating_collect = false;
+            }, 3000);
+        };
+        tapSource.onerror = function (event) {
+            console.log(`Tap source error: ${event}`);
+            tapSource.close();
+            setupMessaging();
+        };
+    }
+    setupMessaging();
 
 </script>
 

@@ -24,6 +24,8 @@ body {
     text-align: center;
     opacity: 0;
     transition: opacity 1s ease-in-out;
+    max-width: 100vw;
+    overflow: hidden;
 }
 
 header {
@@ -60,13 +62,40 @@ footer {
 
 footer img {
     width: 4rem;
-    margin-left: -0.6rem;
+    margin-bottom: 0.4rem;
     transition: opacity 0.3s;
     opacity: 0.6;
 }
 
 footer img:hover {
     opacity: 1;
+}
+
+footer .prototype {
+    position: fixed;
+    bottom: 0;
+    left: 1.5rem;
+    opacity: 0.5;
+    font-size: 1.5rem;
+}
+
+.collect-modal {
+    position: fixed;
+    bottom: 0;
+    right: 0;
+    padding: 2rem;
+    margin: 0;
+    background-color: white;
+    color: black;
+    transition: opacity 0.3s;
+    opacity: 1;
+    font-weight: bold;
+    font-size: 1.2rem;
+    z-index: 20;
+}
+
+.collect-modal.hidden {
+    opacity: 0;
 }
 
 ol {
@@ -81,7 +110,7 @@ ol.selected {
 
 li {
     display: inline-block;
-    margin: 2rem;
+    margin: 2rem 2rem 1rem 2rem;
     width: 8.5rem;
     min-height: 14rem;
     vertical-align: top;
@@ -95,15 +124,23 @@ li.selected {
 }
 
 li.selected a .image {
-    width: 18rem;
-    height: 18rem;
-    border-radius: 9rem;
+    width: 12rem;
+    height: 12rem;
+    border-radius: 6rem;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+li.selected a .circle {
+    width: 12rem;
+    height: 12rem;
+    border-radius: 6rem;
     outline: 4px solid #e66465;
     margin-left: auto;
     margin-right: auto;
 }
 
-li.selected a .image:hover {
+li.selected a .circle:hover {
     outline-color: grey;
 }
 
@@ -167,20 +204,27 @@ h3 {
     line-height: 1.2rem;
 }
 
+.circle {
+    width: 8rem;
+    height: 8rem;
+    outline: 2px solid;
+    outline-offset: 0.6rem;
+    border-radius: 4rem;
+    margin-bottom: 1.5rem;
+}
+
+.circle:hover {
+    outline: 2px solid grey;
+    opacity: 0.8;
+}
+
 .image {
     width: 8rem;
     height: 8rem;
     background: linear-gradient(#e66465, #9198e5);
     border-radius: 4rem;
-    margin-bottom: 1.5rem;
-    outline: 2px solid;
-    outline-offset: 0.6rem;
-    transition: opacity 0.3s;
-}
-
-.image:hover {
-    outline: 2px solid grey;
-    opacity: 0.8;
+    transition: opacity 0.3s ease-in-out;
+    opacity: 1;
 }
 
 .title {
@@ -195,6 +239,12 @@ h3 {
     margin-top: 0.5rem;
     margin-bottom: 0;
     font-weight: bold;
+}
+
+.title-related {
+    color: #e66465;
+    font-size: 1.3rem;
+    margin-bottom: 0;
 }
 
 .info,
@@ -222,6 +272,9 @@ h3 {
     background-color: rgba(40, 40, 40, 0.9);
     z-index: -1;
     transition: opacity 0.3s;
+    max-width: 100%;
+    max-height: 100%;
+    overflow: hidden;
 }
 
 .info-modal .container {
@@ -233,7 +286,8 @@ h3 {
     padding: 4rem;
     border-radius: 0.25rem;
     text-align: left;
-    overflow: scroll;
+    overflow-x: hidden;
+    overflow-y: scroll;
 }
 
 .container .image {
@@ -294,6 +348,10 @@ h3 {
 }
 
 @media (max-width: 1224px) {
+    body {
+        overflow-y: scroll;
+    }
+
     header {
         max-width: 50vw;
         margin: 2rem auto;
@@ -318,16 +376,20 @@ h3 {
 
     li {
         width: 6.5rem;
-        margin: 1.5rem;
+        margin: 1.5rem 1.5rem 1rem 1.5rem;
     }
 
     footer {
-        width: 2rem;
+        width: 4rem;
         margin-bottom: 0rem;
     }
 
     footer img {
         width: 3rem;
+    }
+
+    footer .prototype {
+        display: none;
     }
 
     .info-modal .container {
@@ -346,7 +408,7 @@ h3 {
         margin: -1rem -1rem -2rem 0;
     }
 
-    .image {
+    .circle, .image {
         width: 6rem;
         height: 6rem;
         border-radius: 3rem;
