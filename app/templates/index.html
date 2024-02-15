@@ -105,13 +105,15 @@
     }
 
     function closeModal(event) {
-        const elementModal = event.currentTarget;
-        elementModal.style.opacity = 0;
-        elementModal.style.zIndex = -1;
-        event.preventDefault();
-        event.stopPropagation();
-        if (elementModal.parentElement.className === 'selected') {
-            elementModal.parentElement.addEventListener('click', showModal);
+        if (event.srcElement.className !== 'image' && event.srcElement.className !== 'title') {
+            const elementModal = event.currentTarget;
+            elementModal.style.opacity = 0;
+            elementModal.style.zIndex = -1;
+            event.preventDefault();
+            event.stopPropagation();
+            if (elementModal.parentElement.className === 'selected') {
+                elementModal.parentElement.addEventListener('click', showModal);
+            }
         }
     }
 
