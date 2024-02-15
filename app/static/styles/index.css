@@ -329,6 +329,11 @@ h3 {
     outline: 4px solid white;
 }
 
+.container .right .title-related {
+    margin-top: 0;
+    margin-bottom: 2rem;
+}
+
 .container .image:hover {
     opacity: 1;
 }
@@ -436,5 +441,13 @@ h3 {
         height: 6rem;
         border-radius: 3rem;
         margin-bottom: 1.5rem;
+    }
+
+    .container .circle, .container .image {
+        width: 18rem;
+        height: 18rem;
+        border-radius: 9rem;
+        margin-left: auto;
+        margin-right: auto;
     }
 }
