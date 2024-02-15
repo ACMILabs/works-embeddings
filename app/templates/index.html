@@ -58,15 +58,28 @@
                 <div class="container">
                     <span class="close"><a href="#close"><img src="{{ url_for('static', filename='images/close.svg') }}" alt="Close this popup" title="Close this popup"></a></span>
                     <div class="left">
-                        <div class="image"></div>
+                        <div class="circle"><div class="image"></div></div>
                         <h1>Title...</h1>
                         <h2>Sub-title...</h2>
                         <h3>Creators...</h3>
                     </div>
                     <div class="right">
-                        {% if embedding.distance %}
-                            <p class="distance"><strong>{{ embedding.distance|format_distance }}% algorithmic match</strong> with the selected work.</p>
-                        {% endif %}
+                        <ol>
+                        {% for embedding in embeddings %}
+                            {% if not loop.first %}
+                                <li id="modal-{{ embedding.work }}" class="modal-works">
+                                    <a href="/?work={{ embedding.work }}{% if request.args.json %}&json={{ request.args.json }}{% endif %}"><div class="circle"><div class="image"></div></div></a>
+                                    <p class="title">
+                                        <a href="/?work={{ embedding.work }}{% if request.args.json %}&json={{ request.args.json }}{% endif %}">Loading...</a>
+                                    </p>
+                                    {% if embedding.distance and request.args.work %}
+                                        <p class="distance">{{ embedding.distance|format_distance }}% match </p>
+                                    {% endif %}
+                                </li>
+                            {% endif %}
+                        {% endfor %}
+                        </ol>
+                        <h2>Description</h2>
                         <span class="description"></span>
                     </div>
                 </div>
@@ -143,44 +156,55 @@
         }
 
         // Fetch work information
-        fetch(`/works/${element.id}/`, {
-            method: 'get'
-        }).then(function(response) {
-            return response.json();
-        }).then(function(data) {
-            if (data.title) {
-                if (element.className === 'selected') {
-                    const bodyTitle = document.getElementsByTagName('title')[0];
-                    bodyTitle.innerHTML = `Collections explorer - ${data.id} - ${data.title}`;
-                }
-                element.getElementsByTagName('a')[1].innerText = ` ${data.title}`;
-                element.getElementsByTagName('h1')[0].innerText = data.title;
-                element.getElementsByTagName('h2')[0].innerText = data.headline_credit;
-                element.getElementsByTagName('h3')[0].innerText = data.creator_credit;
-                element.getElementsByClassName('description')[0].innerHTML = getDescription(data);
-                if (data.thumbnail) {
-                    const link = document.createElement('a');
-                    link.href = `/?work=${data.id}`;
-                    const images = element.getElementsByClassName('image');
-                    for (const image of images) {
-                        image.style.opacity = '0';
-                        setTimeout(() => {
-                            image.style.backgroundImage = `url(${data.thumbnail.image_url})`;
-                            image.style.backgroundRepeat = 'no-repeat';
-                            image.style.backgroundSize = 'cover';
-                            image.style.backgroundPosition = 'center';
-                            image.title = data.title;
-                            image.alt = data.title;
-                            image.style.opacity = '1';
-                        }, 300);
+        if (element.className !== 'modal-works') {
+            fetch(`/works/${element.id}/`, {
+                method: 'get'
+            }).then(function(response) {
+                return response.json();
+            }).then(function(data) {
+                if (data.title) {
+                    const modalListElement = document.getElementById(`modal-${element.id}`);
+                    if (element.className === 'selected') {
+                        const bodyTitle = document.getElementsByTagName('title')[0];
+                        bodyTitle.innerHTML = `Collections explorer - ${data.id} - ${data.title}`;
                     }
+                    element.getElementsByTagName('a')[1].innerText = ` ${data.title}`;
+                    element.getElementsByTagName('h1')[0].innerText = data.title;
+                    if (modalListElement !== null) {
+                        modalListElement.getElementsByClassName('title')[0].innerText = data.title
+                    }
+                    element.getElementsByTagName('h2')[0].innerText = data.headline_credit;
+                    element.getElementsByTagName('h3')[0].innerText = data.creator_credit;
+                    element.getElementsByClassName('description')[0].innerHTML = getDescription(data);
+                    if (data.thumbnail) {
+                        const link = document.createElement('a');
+                        link.href = `/?work=${data.id}`;
+                        var images = element.getElementsByClassName('image');
+                        var imagesArray = Array.from(images).slice(0, 2);
+                        if (modalListElement !== null) {
+                            var modalImage = Array.from(modalListElement.getElementsByClassName('image'));
+                            imagesArray = imagesArray.concat(modalImage);
+                        }
+                        for (const image of imagesArray) {
+                            image.style.opacity = '0';
+                            setTimeout(() => {
+                                image.style.backgroundImage = `url(${data.thumbnail.image_url})`;
+                                image.style.backgroundRepeat = 'no-repeat';
+                                image.style.backgroundSize = 'cover';
+                                image.style.backgroundPosition = 'center';
+                                image.title = data.title;
+                                image.alt = data.title;
+                                image.style.opacity = '1';
+                            }, 300);
+                        }
+                    }
+                    limitWordCount('.title', 7);
                 }
-                limitWordCount('.title', 7);
-            }
-        }).catch(function(err) {
-            // Error
-            console.log(err);
-        });
+            }).catch(function(err) {
+                // Error
+                console.log(err);
+            });
+        }
     }
 
     function openApplicationInformation() {
@@ -227,7 +251,7 @@
                 const style = window.getComputedStyle(infoModal);
                 eligable = style.opacity != '1';
             } catch (error) {
-                console.log(error);
+                // console.log(error);
             }
             return eligable;
         });
@@ -381,6 +405,10 @@
         };
     }
     setupMessaging();
+
+    {% if request.args.work %}
+        document.getElementsByTagName('li')[0].click();
+    {% endif %}
 
 </script>
 
