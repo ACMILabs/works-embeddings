@@ -64,6 +64,8 @@
                         <h3>Creators...</h3>
                     </div>
                     <div class="right">
+                        <h2>Description</h2>
+                        <span class="description"></span>
                         <p class="title-related">Algorithmically related works:</p>
                         <ol>
                         {% for embedding in embeddings %}
@@ -80,8 +82,6 @@
                             {% endif %}
                         {% endfor %}
                         </ol>
-                        <h2>Description</h2>
-                        <span class="description"></span>
                     </div>
                 </div>
             </div>
@@ -89,7 +89,7 @@
     {% endfor %}
     </ol>
     <footer>
-        <p><a href="/{% if request.args.json %}?json={{ request.args.json }}{% endif %}"><img src="{{ url_for('static', filename='images/refresh.svg') }}" alt="Tap to reload a new selection of works" title="Tap to reload a new selection of works"><br>Random</a></p>
+        <a href="/{% if request.args.json %}?json={{ request.args.json }}{% endif %}"><p class="random"><img src="{{ url_for('static', filename='images/refresh.svg') }}" alt="Tap to reload a new selection of works" title="Tap to reload a new selection of works"><br>Random</p></a>
         <p class="prototype">Prototype in testing</p>
     </footer>
     <p class="collect-modal hidden">TAP YOUR LENS TO COLLECT</p>
@@ -113,7 +113,10 @@
             event.preventDefault();
             event.stopPropagation();
             if (elementModal.parentElement.className === 'selected') {
-                elementModal.parentElement.addEventListener('click', showModal);
+                // Delay is 0ms, but it ensures the listener is added after the current event finishes
+                setTimeout(function() {
+                    elementModal.parentElement.addEventListener('click', showModal);
+                }, 0);
             }
         }
     }
@@ -123,25 +126,8 @@
         if (description.length == 0) {
             description = work_data.brief_description;
         }
-        if (description.length === 0) {
-            if (work_data.group) {
-                fetch(`/works/${work_data.group.id}/`, {
-                    method: 'get'
-                }).then(function(response) {
-                    return response.json();
-                }).then(function(data) {
-                    description = data.description_for_label;
-                    if (description.length == 0) {
-                        description = work_data.brief_description;
-                    }
-                }).catch(function(err) {
-                    // Error
-                    console.log(err);
-                });
-            }
-            if (description.length == 0) {
-                description = "Sorry, we don't have a description for this object.";
-            }
+        if (description.length == 0) {
+            description = "Sorry, we don't have a description for this object.";
         }
         return description;
     }
@@ -154,8 +140,64 @@
         if (elementModal) {
             if (element.className === 'selected') {
                 element.addEventListener('click', showModal);
+
+                // Allow scrolling/dragging, and close the modal for a single tap/click
+                // Variables to hold touch start points
+                let startX = 0;
+                let startY = 0;
+
+                // Threshold for determining if the gesture is a click or a drag
+                const movementThreshold = 10; // pixels
+                elementModal.addEventListener('touchstart', function(event) {
+                    startX = event.touches[0].pageX;
+                    startY = event.touches[0].pageY;
+                }, false);
+
+                // Touch end handler
+                elementModal.addEventListener('touchend', function(event) {
+                    const endX = event.changedTouches[0].pageX;
+                    const endY = event.changedTouches[0].pageY;
+
+                    // Calculate the distance moved
+                    const distanceMoved = Math.sqrt(Math.pow(endX - startX, 2) + Math.pow(endY - startY, 2));
+
+                    // If the distance moved is less than the threshold, treat as a click
+                    if (distanceMoved < movementThreshold) {
+                        // Call your closeModal or any other function here
+                        elementModal.removeEventListener('touchstart', showModal);
+                        elementModal.removeEventListener('touchend', showModal);
+                        elementModal.removeEventListener('mousedown', showModal);
+                        elementModal.removeEventListener('mouseup', showModal);
+                        closeModal(event);
+                        console.log('Close modal touch handler...');
+                    }
+                }, false);
+
+                // Optionally handle mouse events as well, with similar logic
+                elementModal.addEventListener('mousedown', function(event) {
+                    startX = event.pageX;
+                    startY = event.pageY;
+                }, false);
+
+                elementModal.addEventListener('mouseup', function(event) {
+                    const endX = event.pageX;
+                    const endY = event.pageY;
+
+                    // Calculate the distance moved
+                    const distanceMoved = Math.sqrt(Math.pow(endX - startX, 2) + Math.pow(endY - startY, 2));
+
+                    // If the distance moved is less than the threshold, treat as a click
+                    if (distanceMoved < movementThreshold) {
+                        // Call your closeModal or any other function here
+                        elementModal.removeEventListener('touchstart', showModal);
+                        elementModal.removeEventListener('touchend', showModal);
+                        elementModal.removeEventListener('mousedown', showModal);
+                        elementModal.removeEventListener('mouseup', showModal);
+                        closeModal(event);
+                        console.log('Close modal mouse handler...');
+                    }
+                }, false);
             }
-            elementModal.addEventListener('click', closeModal);
         }
 
         // Fetch work information
@@ -410,6 +452,7 @@
     setupMessaging();
 
     {% if request.args.work %}
+        // Auto-open the modal for a work
         document.getElementsByTagName('li')[0].click();
     {% endif %}
 

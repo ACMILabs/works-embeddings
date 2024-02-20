@@ -36,14 +36,14 @@ header .info,
 header .back {
     width: 4rem;
     position: absolute;
-    top: 0;
-    right: 0;
-    margin: 2rem;
+    top: -2rem;
+    right: -2rem;
+    padding: 4rem;
     transition: opacity 0.3s;
 }
 
 header .back {
-    left: 0;
+    left: -2rem;
 }
 
 .qrcode {
@@ -67,8 +67,15 @@ footer img {
     opacity: 0.6;
 }
 
-footer img:hover {
+footer .random:hover img {
     opacity: 1;
+}
+
+footer .random {
+    padding: 2rem;
+    width: 4rem;
+    margin-left: -2rem;
+    margin-bottom: -1rem;
 }
 
 footer .prototype {
@@ -330,7 +337,7 @@ h3 {
 }
 
 .container .right .title-related {
-    margin-top: 0;
+    margin-top: 2rem;
     margin-bottom: 2rem;
 }
 
@@ -395,7 +402,7 @@ h3 {
     header .info,
     header .back {
         width: 3rem;
-        margin: 1rem;
+        margin: -1rem;
     }
 
     ol {
