@@ -36,14 +36,14 @@ header .info,
 header .back {
     width: 4rem;
     position: absolute;
-    top: 0;
-    right: 0;
-    margin: 2rem;
+    top: -2rem;
+    right: -2rem;
+    padding: 4rem;
     transition: opacity 0.3s;
 }
 
 header .back {
-    left: 0;
+    left: -2rem;
 }
 
 .qrcode {
@@ -67,8 +67,15 @@ footer img {
     opacity: 0.6;
 }
 
-footer img:hover {
+footer .random:hover img {
     opacity: 1;
+}
+
+footer .random {
+    padding: 2rem;
+    width: 4rem;
+    margin-left: -2rem;
+    margin-bottom: -1rem;
 }
 
 footer .prototype {
@@ -290,12 +297,48 @@ h3 {
     overflow-y: scroll;
 }
 
-.container .image {
-    width: 100%;
+.container .right ol {
+    margin-bottom: 2rem;
+}
+
+.info-modal .container li {
+    margin: 1rem 2rem 1rem 1rem;
+    width: 7rem;
+}
+
+.container .image, .container .circle {
+    width: 24rem;
     height: 24rem;
-    border-radius: 0.25rem;
-    outline: none;
+    border-radius: 12rem;
     margin-bottom: 3rem;
+}
+
+.container .left .circle {
+    outline: 4px solid #e66465;
+}
+
+.container .left .circle:hover {
+    outline: 4px solid #e66465;
+    opacity: 1;
+}
+
+.container .right .image, .container .right .circle {
+    width: 6rem;
+    height: 6rem;
+    background: linear-gradient(#e66465, #9198e5);
+    border-radius: 3rem;
+    transition: opacity 0.3s ease-in-out;
+    opacity: 1;
+    margin-bottom: 2rem;
+}
+
+.container .right .circle {
+    outline: 4px solid white;
+}
+
+.container .right .title-related {
+    margin-top: 2rem;
+    margin-bottom: 2rem;
 }
 
 .container .image:hover {
@@ -310,7 +353,7 @@ h3 {
 }
 
 .right {
-    width: 50%;
+    width: 55%;
 }
 
 .description {
@@ -320,14 +363,6 @@ h3 {
 
 .description p {
     margin-top: 0;
-}
-
-.container .distance {
-    font-size: 1.5rem;
-    margin-top: 0;
-    margin-bottom: 1.5rem;
-    color: #e66465;
-    opacity: 1;
 }
 
 .close {
@@ -367,7 +402,7 @@ h3 {
     header .info,
     header .back {
         width: 3rem;
-        margin: 1rem;
+        margin: -1rem;
     }
 
     ol {
@@ -413,5 +448,13 @@ h3 {
         height: 6rem;
         border-radius: 3rem;
         margin-bottom: 1.5rem;
+    }
+
+    .container .circle, .container .image {
+        width: 18rem;
+        height: 18rem;
+        border-radius: 9rem;
+        margin-left: auto;
+        margin-right: auto;
     }
 }

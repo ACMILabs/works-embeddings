@@ -58,16 +58,30 @@
                 <div class="container">
                     <span class="close"><a href="#close"><img src="{{ url_for('static', filename='images/close.svg') }}" alt="Close this popup" title="Close this popup"></a></span>
                     <div class="left">
-                        <div class="image"></div>
+                        <div class="circle"><div class="image"></div></div>
                         <h1>Title...</h1>
                         <h2>Sub-title...</h2>
                         <h3>Creators...</h3>
                     </div>
                     <div class="right">
-                        {% if embedding.distance %}
-                            <p class="distance"><strong>{{ embedding.distance|format_distance }}% algorithmic match</strong> with the selected work.</p>
-                        {% endif %}
+                        <h2>Description</h2>
                         <span class="description"></span>
+                        <p class="title-related">Algorithmically related works:</p>
+                        <ol>
+                        {% for embedding in embeddings %}
+                            {% if not loop.first %}
+                                <li id="modal-{{ embedding.work }}" class="modal-works">
+                                    <a href="/?work={{ embedding.work }}{% if request.args.json %}&json={{ request.args.json }}{% endif %}"><div class="circle"><div class="image"></div></div></a>
+                                    <p class="title">
+                                        <a href="/?work={{ embedding.work }}{% if request.args.json %}&json={{ request.args.json }}{% endif %}">Loading...</a>
+                                    </p>
+                                    {% if embedding.distance and request.args.work %}
+                                        <p class="distance">{{ embedding.distance|format_distance }}% match </p>
+                                    {% endif %}
+                                </li>
+                            {% endif %}
+                        {% endfor %}
+                        </ol>
                     </div>
                 </div>
             </div>
@@ -75,7 +89,7 @@
     {% endfor %}
     </ol>
     <footer>
-        <p><a href="/{% if request.args.json %}?json={{ request.args.json }}{% endif %}"><img src="{{ url_for('static', filename='images/refresh.svg') }}" alt="Tap to reload a new selection of works" title="Tap to reload a new selection of works"><br>Random</a></p>
+        <a href="/{% if request.args.json %}?json={{ request.args.json }}{% endif %}"><p class="random"><img src="{{ url_for('static', filename='images/refresh.svg') }}" alt="Tap to reload a new selection of works" title="Tap to reload a new selection of works"><br>Random</p></a>
         <p class="prototype">Prototype in testing</p>
     </footer>
     <p class="collect-modal hidden">TAP YOUR LENS TO COLLECT</p>
@@ -92,13 +106,18 @@
     }
 
     function closeModal(event) {
-        const elementModal = event.currentTarget;
-        elementModal.style.opacity = 0;
-        elementModal.style.zIndex = -1;
-        event.preventDefault();
-        event.stopPropagation();
-        if (elementModal.parentElement.className === 'selected') {
-            elementModal.parentElement.addEventListener('click', showModal);
+        if (event.srcElement.className !== 'image' && event.srcElement.className !== 'title') {
+            const elementModal = event.currentTarget;
+            elementModal.style.opacity = 0;
+            elementModal.style.zIndex = -1;
+            event.preventDefault();
+            event.stopPropagation();
+            if (elementModal.parentElement.className === 'selected') {
+                // Delay is 0ms, but it ensures the listener is added after the current event finishes
+                setTimeout(function() {
+                    elementModal.parentElement.addEventListener('click', showModal);
+                }, 0);
+            }
         }
     }
 
@@ -107,25 +126,8 @@
         if (description.length == 0) {
             description = work_data.brief_description;
         }
-        if (description.length === 0) {
-            if (work_data.group) {
-                fetch(`/works/${work_data.group.id}/`, {
-                    method: 'get'
-                }).then(function(response) {
-                    return response.json();
-                }).then(function(data) {
-                    description = data.description_for_label;
-                    if (description.length == 0) {
-                        description = work_data.brief_description;
-                    }
-                }).catch(function(err) {
-                    // Error
-                    console.log(err);
-                });
-            }
-            if (description.length == 0) {
-                description = "Sorry, we don't have a description for this object.";
-            }
+        if (description.length == 0) {
+            description = "Sorry, we don't have a description for this object.";
         }
         return description;
     }
@@ -138,49 +140,116 @@
         if (elementModal) {
             if (element.className === 'selected') {
                 element.addEventListener('click', showModal);
+
+                // Allow scrolling/dragging, and close the modal for a single tap/click
+                // Variables to hold touch start points
+                let startX = 0;
+                let startY = 0;
+
+                // Threshold for determining if the gesture is a click or a drag
+                const movementThreshold = 10; // pixels
+                elementModal.addEventListener('touchstart', function(event) {
+                    startX = event.touches[0].pageX;
+                    startY = event.touches[0].pageY;
+                }, false);
+
+                // Touch end handler
+                elementModal.addEventListener('touchend', function(event) {
+                    const endX = event.changedTouches[0].pageX;
+                    const endY = event.changedTouches[0].pageY;
+
+                    // Calculate the distance moved
+                    const distanceMoved = Math.sqrt(Math.pow(endX - startX, 2) + Math.pow(endY - startY, 2));
+
+                    // If the distance moved is less than the threshold, treat as a click
+                    if (distanceMoved < movementThreshold) {
+                        // Call your closeModal or any other function here
+                        elementModal.removeEventListener('touchstart', showModal);
+                        elementModal.removeEventListener('touchend', showModal);
+                        elementModal.removeEventListener('mousedown', showModal);
+                        elementModal.removeEventListener('mouseup', showModal);
+                        closeModal(event);
+                        console.log('Close modal touch handler...');
+                    }
+                }, false);
+
+                // Optionally handle mouse events as well, with similar logic
+                elementModal.addEventListener('mousedown', function(event) {
+                    startX = event.pageX;
+                    startY = event.pageY;
+                }, false);
+
+                elementModal.addEventListener('mouseup', function(event) {
+                    const endX = event.pageX;
+                    const endY = event.pageY;
+
+                    // Calculate the distance moved
+                    const distanceMoved = Math.sqrt(Math.pow(endX - startX, 2) + Math.pow(endY - startY, 2));
+
+                    // If the distance moved is less than the threshold, treat as a click
+                    if (distanceMoved < movementThreshold) {
+                        // Call your closeModal or any other function here
+                        elementModal.removeEventListener('touchstart', showModal);
+                        elementModal.removeEventListener('touchend', showModal);
+                        elementModal.removeEventListener('mousedown', showModal);
+                        elementModal.removeEventListener('mouseup', showModal);
+                        closeModal(event);
+                        console.log('Close modal mouse handler...');
+                    }
+                }, false);
             }
-            elementModal.addEventListener('click', closeModal);
         }
 
         // Fetch work information
-        fetch(`/works/${element.id}/`, {
-            method: 'get'
-        }).then(function(response) {
-            return response.json();
-        }).then(function(data) {
-            if (data.title) {
-                if (element.className === 'selected') {
-                    const bodyTitle = document.getElementsByTagName('title')[0];
-                    bodyTitle.innerHTML = `Collections explorer - ${data.id} - ${data.title}`;
-                }
-                element.getElementsByTagName('a')[1].innerText = ` ${data.title}`;
-                element.getElementsByTagName('h1')[0].innerText = data.title;
-                element.getElementsByTagName('h2')[0].innerText = data.headline_credit;
-                element.getElementsByTagName('h3')[0].innerText = data.creator_credit;
-                element.getElementsByClassName('description')[0].innerHTML = getDescription(data);
-                if (data.thumbnail) {
-                    const link = document.createElement('a');
-                    link.href = `/?work=${data.id}`;
-                    const images = element.getElementsByClassName('image');
-                    for (const image of images) {
-                        image.style.opacity = '0';
-                        setTimeout(() => {
-                            image.style.backgroundImage = `url(${data.thumbnail.image_url})`;
-                            image.style.backgroundRepeat = 'no-repeat';
-                            image.style.backgroundSize = 'cover';
-                            image.style.backgroundPosition = 'center';
-                            image.title = data.title;
-                            image.alt = data.title;
-                            image.style.opacity = '1';
-                        }, 300);
+        if (element.className !== 'modal-works') {
+            fetch(`/works/${element.id}/`, {
+                method: 'get'
+            }).then(function(response) {
+                return response.json();
+            }).then(function(data) {
+                if (data.title) {
+                    const modalListElement = document.getElementById(`modal-${element.id}`);
+                    if (element.className === 'selected') {
+                        const bodyTitle = document.getElementsByTagName('title')[0];
+                        bodyTitle.innerHTML = `Collections explorer - ${data.id} - ${data.title}`;
                     }
+                    element.getElementsByTagName('a')[1].innerText = ` ${data.title}`;
+                    element.getElementsByTagName('h1')[0].innerText = data.title;
+                    if (modalListElement !== null) {
+                        modalListElement.getElementsByClassName('title')[0].innerText = data.title
+                    }
+                    element.getElementsByTagName('h2')[0].innerText = data.headline_credit;
+                    element.getElementsByTagName('h3')[0].innerText = data.creator_credit;
+                    element.getElementsByClassName('description')[0].innerHTML = getDescription(data);
+                    if (data.thumbnail) {
+                        const link = document.createElement('a');
+                        link.href = `/?work=${data.id}`;
+                        var images = element.getElementsByClassName('image');
+                        var imagesArray = Array.from(images).slice(0, 2);
+                        if (modalListElement !== null) {
+                            var modalImage = Array.from(modalListElement.getElementsByClassName('image'));
+                            imagesArray = imagesArray.concat(modalImage);
+                        }
+                        for (const image of imagesArray) {
+                            image.style.opacity = '0';
+                            setTimeout(() => {
+                                image.style.backgroundImage = `url(${data.thumbnail.image_url})`;
+                                image.style.backgroundRepeat = 'no-repeat';
+                                image.style.backgroundSize = 'cover';
+                                image.style.backgroundPosition = 'center';
+                                image.title = data.title;
+                                image.alt = data.title;
+                                image.style.opacity = '1';
+                            }, 300);
+                        }
+                    }
+                    limitWordCount('.title', 7);
                 }
-                limitWordCount('.title', 7);
-            }
-        }).catch(function(err) {
-            // Error
-            console.log(err);
-        });
+            }).catch(function(err) {
+                // Error
+                console.log(err);
+            });
+        }
     }
 
     function openApplicationInformation() {
@@ -221,13 +290,21 @@
         const liElements = document.querySelectorAll('ol > li');
         const eligibleElements = Array.from(liElements).filter(li => {
             const infoModal = li.querySelector('.info-modal');
-            // Get computed style to check if opacity is set through CSS
+            // Get computed style to check if opacity is set through CSS for hidden modals
             var eligable = false;
             try {
                 const style = window.getComputedStyle(infoModal);
                 eligable = style.opacity != '1';
             } catch (error) {
-                console.log(error);
+                // Get style for open modals
+                try {
+                    const listStyle = window.getComputedStyle(li);
+                    if (listStyle.opacity == '1' && li.classList.contains('modal-works')) {
+                        eligable = true;
+                    }
+                } catch (error) {
+                    console.log(`Error setting wiggle: ${error}`);
+                }
             }
             return eligable;
         });
@@ -381,6 +458,11 @@
         };
     }
     setupMessaging();
+
+    {% if request.args.work %}
+        // Auto-open the modal for a work
+        document.getElementsByTagName('li')[0].click();
+    {% endif %}
 
 </script>
 
