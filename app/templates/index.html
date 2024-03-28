@@ -290,13 +290,21 @@
         const liElements = document.querySelectorAll('ol > li');
         const eligibleElements = Array.from(liElements).filter(li => {
             const infoModal = li.querySelector('.info-modal');
-            // Get computed style to check if opacity is set through CSS
+            // Get computed style to check if opacity is set through CSS for hidden modals
             var eligable = false;
             try {
                 const style = window.getComputedStyle(infoModal);
                 eligable = style.opacity != '1';
             } catch (error) {
-                // console.log(error);
+                // Get style for open modals
+                try {
+                    const listStyle = window.getComputedStyle(li);
+                    if (listStyle.opacity == '1' && li.classList.contains('modal-works')) {
+                        eligable = true;
+                    }
+                } catch (error) {
+                    console.log(`Error setting wiggle: ${error}`);
+                }
             }
             return eligable;
         });
