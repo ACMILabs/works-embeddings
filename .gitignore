@@ -168,3 +168,6 @@ works_db.tar.gz
 
 # Balena docker-compose file
 docker-compose.yml
+
+# Image cache
+app/static/cache

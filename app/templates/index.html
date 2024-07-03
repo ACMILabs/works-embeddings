@@ -338,8 +338,10 @@
     }
 
     function resetTimers() {
-        resetWiggleTimer();
-        resetInactivityTimer();
+        {% if refresh_timeout > 0 %}
+            resetWiggleTimer();
+            resetInactivityTimer();
+        {% endif %}
     }
 
     // Event listeners for user actions
@@ -349,9 +351,7 @@
     document.addEventListener('touchstart', resetTimers);
 
     // Initialize the timers if a refresh timeout is set
-    {% if refresh_timeout > 0 %}
-        resetTimers();
-    {% endif %}
+    resetTimers();
 
     // Fade in the page after it loads
     window.onload = function() {
