@@ -45,7 +45,7 @@ def format_distance(value):
     """
     if value > 1:
         value = normalise_distance(value)
-    return int((1 - value) * 100)
+    return round((1 - value) * 100)
 
 
 @application.template_filter('format_timestamp')
