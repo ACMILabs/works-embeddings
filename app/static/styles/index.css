@@ -173,7 +173,7 @@ header h1.selected {
     display: none;
 }
 
-header h1.images {
+header h1.images, header h1.videos {
     margin: 2rem;
 }
 

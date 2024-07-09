@@ -4,12 +4,12 @@
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ACMI Collections images explorer</title>
+    <title>ACMI Collection {{ path }} explorer</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles/index.css') }}">
 </head>
 <body>
     <header>
-        <h1 class="{% if request.args.work %}selected{% endif %} images"><a href="/images/{% if request.args.json %}?json={{ request.args.json }}{% endif %}">Collections images explorer</a></h1>
+        <h1 class="{% if request.args.work %}selected{% endif %} images"><a href="/{{ path }}/{% if request.args.json %}?json={{ request.args.json }}{% endif %}">Collection {{ path }} explorer</a></h1>
         {% if not request.args.work %}
             <form>
                 <input type="text" name="text" id="text" placeholder="What are you looking for?" value="{% if text %}{{ text }}{% endif %}" autofocus>
@@ -43,20 +43,22 @@
     <ol class="{% if request.args.work %}selected{% endif %}">
     {% for embedding in embeddings %}
         <li id="{{ embedding.work }}" class="{% if request.args.work %}{% if loop.index0 %}{% else %}selected{% endif %}{% endif %}">
-            <a href="/images/?work={{ embedding.work }}{% if request.args.json %}&json={{ request.args.json }}{% endif %}">
+            <a href="/{{ path }}/?work={{ embedding.work }}{% if request.args.json %}&json={{ request.args.json }}{% endif %}">
                 <div class="circle"><div class="image"></div></div>
             </a>
-            <a href="/images/?work={{ embedding.work }}{% if request.args.json %}&json={{ request.args.json }}{% endif %}">
+            <a href="/{{ path }}/?work={{ embedding.work }}{% if request.args.json %}&json={{ request.args.json }}{% endif %}">
                 <p class="title">Loading...</p>
             </a>
             {% if embedding.distance and (request.args.text or request.args.image or request.args.work) %}
                 <p class="distance">{{ embedding.distance|format_distance }}% match </p>
             {% endif %}
-            <p class="timestamp">{{ embedding.work|format_timestamp }} mins </p>
+            {% if path == 'videos' %}
+                <p class="timestamp">{{ embedding.work|format_timestamp }} mins </p>
+            {% endif %}
             {% if request.args.work %}
                 {% if loop.index0 %}
                 {% else %}
-                    <p class="title-related">Algorithmically related works by image:</p>
+                    <p class="title-related">Algorithmically related works by {% if path == 'videos' %}video frame{% else %}image{% endif %}:</p>
                 {% endif %}
             {% endif %}
             <!-- More information -->
@@ -72,19 +74,21 @@
                     <div class="right">
                         <h2>Description</h2>
                         <span class="description"></span>
-                        <p class="title-related">Algorithmically related works by image:</p>
+                        <p class="title-related">Algorithmically related works by {% if path == 'videos' %}video frame{% else %}image{% endif %}:</p>
                         <ol>
                         {% for embedding in embeddings %}
                             {% if not loop.first %}
                                 <li id="modal-{{ embedding.work }}" class="modal-works">
-                                    <a href="/images/?image={{ embedding.work }}{% if request.args.json %}&json={{ request.args.json }}{% endif %}{% if request.args.text %}&text={{ request.args.text }}{% endif %}"><div class="circle"><div class="image"></div></div></a>
+                                    <a href="/{{ path }}/?image={{ embedding.work }}{% if request.args.json %}&json={{ request.args.json }}{% endif %}{% if request.args.text %}&text={{ request.args.text }}{% endif %}"><div class="circle"><div class="image"></div></div></a>
                                     <p class="title">
-                                        <a href="/images/?image={{ embedding.work }}{% if request.args.json %}&json={{ request.args.json }}{% endif %}{% if request.args.text %}&text={{ request.args.text }}{% endif %}">Loading...</a>
+                                        <a href="/{{ path }}/?image={{ embedding.work }}{% if request.args.json %}&json={{ request.args.json }}{% endif %}{% if request.args.text %}&text={{ request.args.text }}{% endif %}">Loading...</a>
                                     </p>
                                     {% if embedding.distance and request.args.work %}
                                         <p class="distance">{{ embedding.distance|format_distance }}% match </p>
                                     {% endif %}
-                                    <p class="timestamp">{{ embedding.work|format_timestamp }} mins </p>
+                                    {% if path == 'videos' %}
+                                        <p class="timestamp">{{ embedding.work|format_timestamp }} mins </p>
+                                    {% endif %}
                                 </li>
                             {% endif %}
                         {% endfor %}
@@ -96,7 +100,7 @@
     {% endfor %}
     </ol>
     <footer>
-        <a href="/images/{% if request.args.json %}?json={{ request.args.json }}{% endif %}"><p class="random"><img src="{{ url_for('static', filename='images/refresh.svg') }}" alt="Tap to reload a new selection of works" title="Tap to reload a new selection of works"><br>Random</p></a>
+        <a href="/{{ path }}/{% if request.args.json %}?json={{ request.args.json }}{% endif %}"><p class="random"><img src="{{ url_for('static', filename='images/refresh.svg') }}" alt="Tap to reload a new selection of works" title="Tap to reload a new selection of works"><br>Random</p></a>
         <p class="prototype">Prototype in testing</p>
     </footer>
 </body>

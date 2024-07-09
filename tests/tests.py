@@ -11,7 +11,7 @@ def test_root(_, __):
     with application.test_client() as client:
         response = client.get('/?json=false')
         assert response.status_code == 200
-        assert 'ACMI Collections explorer' in response.text
+        assert 'ACMI Collection explorer' in response.text
 
 
 @patch('app.embeddings.chromadb')
@@ -23,7 +23,19 @@ def test_images(_, __):
     with application.test_client() as client:
         response = client.get('/images/?json=false')
         assert response.status_code == 200
-        assert 'ACMI Collections images explorer' in response.text
+        assert 'ACMI Collection images explorer' in response.text
+
+
+@patch('app.embeddings.chromadb')
+@patch('app.embeddings.open_clip')
+def test_videos(_, __):
+    """
+    Test the Collections videos embeddings returns expected content.
+    """
+    with application.test_client() as client:
+        response = client.get('/videos/?json=false')
+        assert response.status_code == 200
+        assert 'ACMI Collection videos explorer' in response.text
 
 
 def test_normalise_distance():

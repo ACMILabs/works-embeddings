@@ -103,26 +103,42 @@ def home():
     return jsonify(filtered_embeddings)
 
 
-@application.route('/images/')
-def images():  # pylint: disable=too-many-branches
+@application.route('/videos/')
+def videos():
     """
-    Image embeddings page.
+    Video embeddings page.
+    """
+    return video_and_image_response(request)
+
+
+@application.route('/images/')
+def images():
+    """
+    Video embeddings page.
+    """
+    return video_and_image_response(request)
+
+
+def video_and_image_response(page_request):  # pylint: disable=too-many-branches
+    """
+    Generate a response from requests to the /videos/ or /images/ page.
     """
     results = None
-    json_response = request.args.get('json', DEFAULT_TEMPLATE_JSON).lower() == 'true'
-    text = request.args.get('text', None)
-    image = request.args.get('image', None)
-    work = request.args.get('work', None)
-    size = int(request.args.get('size', '11'))
+    json_response = page_request.args.get('json', DEFAULT_TEMPLATE_JSON).lower() == 'true'
+    text = page_request.args.get('text', None)
+    image = page_request.args.get('image', None)
+    work = page_request.args.get('work', None)
+    size = int(page_request.args.get('size', '11'))
+    path = page_request.path.replace('/', '')
     global SELECTED_WORK_ID  # pylint: disable=global-statement
-    embeddings = CHROMA.embeddings.get('videos')
+    embeddings = CHROMA.embeddings.get(path)
     filtered_embeddings = embeddings
 
     if image or text:
         SELECTED_WORK_ID = 'TODO'
         # Create OpenCLIP embedding of the query
         clip = OPENCLIP.get_embeddings(image=image, text_string=text, openai_format=False)[0]
-        results = CHROMA.search(clip, size, collection_name='videos')
+        results = CHROMA.search(clip, size, collection_name=path)
         if results:
             filtered_embeddings = []
             for index, embedding_id in enumerate(results['ids'][0]):
@@ -134,11 +150,11 @@ def images():  # pylint: disable=too-many-branches
         SELECTED_WORK_ID = work
         for embedding in embeddings:
             if str(embedding['work']) == work:
-                result = CHROMA.collections['videos'].get(
+                result = CHROMA.collections[path].get(
                     ids=embedding['id'],
                     include=['embeddings', 'documents'],
                 )
-                results = CHROMA.search(result['embeddings'][0], size, collection_name='videos')
+                results = CHROMA.search(result['embeddings'][0], size, collection_name=path)
                 if results:
                     filtered_embeddings = []
                     for index, embedding_id in enumerate(results['ids'][0]):
@@ -154,30 +170,39 @@ def images():  # pylint: disable=too-many-branches
 
     if not json_response:
         return render_template(
-            'images.html',
+            'index.html',
             embeddings=filtered_embeddings,
             refresh_timeout=REFRESH_TIMEOUT,
             text=text,
+            path=path,
         )
 
     return jsonify(filtered_embeddings)
 
 
-@application.route('/thumbnail/<video_id>/')
-def thumbnail(video_id):
+@application.route('/thumbnail/<item_id>/')
+def thumbnail(item_id):
     """
-    Generate a thumbnail image from a video URL at a given timestamp.
+    Returns a thumbnail image from an image ID or video ID at a given timestamp.
     """
     image_path = None
     max_image_dimension = 600
-    video_id_only = video_id.split('_')[0]
-    timestamp = video_id.split('_')[1]
-    tmp_image_path = os.path.join(application.root_path, 'static', 'cache', f'{video_id}.jpg')
+    item_id_only = item_id.split('_')[1]
+    timestamp = item_id.split('_')[2]
+    tmp_image_path = os.path.join(application.root_path, 'static', 'cache', f'{item_id}.jpg')
     if os.path.isfile(tmp_image_path):
-        image_path = os.path.join('static', 'cache', f'{video_id}.jpg')
+        image_path = os.path.join('static', 'cache', f'{item_id}.jpg')
+    elif 'image' in item_id:
+        xos = XOSAPI()
+        image_json = xos.get(f'images/{item_id_only}').json()
+        image_url = image_json.get('image_file_thumbnail')
+        img_data = requests.get(image_url, timeout=10).content
+        with open(tmp_image_path, 'wb') as image_file:
+            image_file.write(img_data)
+        image_path = os.path.join('static', 'cache', f'{item_id}.jpg')
     else:
         xos = XOSAPI()
-        video_json = xos.get(f'assets/{video_id_only}').json()
+        video_json = xos.get(f'assets/{item_id_only}').json()
         video_url = video_json.get('web_resource') or video_json.get('resource')
         if video_url:
             command = [
@@ -191,7 +216,7 @@ def thumbnail(video_id):
                 tmp_image_path,
             ]
             subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
-            image_path = os.path.join('static', 'cache', f'{video_id}.jpg')
+            image_path = os.path.join('static', 'cache', f'{item_id}.jpg')
     return jsonify({'thumbnail': image_path})
 
 
@@ -270,20 +295,34 @@ if DEBUG:
         Return an XOS Work.
         """
         xos = XOSAPI()
-        work_id = work_id_from_video_id(work_id)
-        return jsonify(xos.get(f'works/{work_id}').json())
+        work_id = work_id_from_item_id(work_id)
+        if work_id:
+            return jsonify(xos.get(f'works/{work_id}').json())
+        return jsonify({'error': 'No work attached to this video.'}), 404
 
 
-def work_id_from_video_id(video_id):
+def work_id_from_item_id(item_id):
     """
-    Returns the Work ID from a Video ID.
+    Returns the Work ID from a Video or Image ID.
     """
     xos = XOSAPI()
-    work_id = video_id
-    work_id_parts = work_id.split('_')
+    work_id = None
+    work_id_parts = item_id.split('_')
     if len(work_id_parts) > 1:
-        video_json = xos.get(f'assets/{work_id_parts[0]}').json()
-        work_id = video_json['works'][0]['id']
+        if work_id_parts[0] == 'video':
+            try:
+                video_json = xos.get(f'assets/{work_id_parts[1]}').json()
+                work_id = video_json['works'][0]['id']
+            except IndexError:
+                pass
+        elif work_id_parts[0] == 'image':
+            try:
+                image_json = xos.get(f'images/{work_id_parts[1]}').json()
+                work_id = image_json['works'][0]
+            except (IndexError, KeyError):
+                pass
+    else:
+        work_id = item_id
     return work_id
 
 
@@ -299,8 +338,8 @@ class Chroma():
     """
     def __init__(self):
         self.client = chromadb.PersistentClient(path=f'{DATABASE_PATH}works_db')  # pylint: disable=no-member
-        self.collections = {'works': None, 'videos': None}
-        self.embeddings = {'works': [], 'videos': []}
+        self.collections = {'works': None, 'videos': None, 'images': None}
+        self.embeddings = {'works': [], 'videos': [], 'images': []}
 
     def get_collection(self, name='works'):
         """
@@ -317,15 +356,21 @@ class Chroma():
         if not self.collections.get(collection_name):
             raise NoCollectionException(f'Please create or load the collection {collection_name}')
         for embedding_item in embeddings_json['data']['data']:
+            prefix = 'work_'
             suffix = ''
+            item_id = embeddings_json['work'] or embeddings_json['video'] or embeddings_json['image']
+            if embeddings_json['video']:
+                prefix = 'video_'
+            if embeddings_json['image']:
+                prefix = 'image_'
             if embedding_item.get('timestamp') is not None:
                 suffix = f"_{embedding_item['timestamp']}"
             embeddings_added.append(
                 self.collections[collection_name].add(
                     embeddings=[embedding_item['embedding']],
-                    documents=[f"{embeddings_json['work'] or embeddings_json['video']}{suffix}"],
+                    documents=[f"{prefix}{item_id}{suffix}"],
                     metadatas=[{'source': 'embeddings'}],
-                    ids=[f"{embeddings_json['id']}{suffix}"],
+                    ids=[f"{prefix}{embeddings_json['id']}{suffix}"],
                 )
             )
         return embeddings_added
@@ -336,22 +381,20 @@ class Chroma():
         """
         page = 1
         while page < (pages + 1):
-            params = {'page': page, 'page_size': 10}
+            params = {'page': page, 'page_size': 10, 'ordering': 'id'}
             if embedding_type == 'works':
                 params['only_works'] = 'true'
                 params['unpublished'] = 'false'
             elif embedding_type == 'videos':
                 params['only_videos'] = 'true'
+            elif embedding_type == 'images':
+                params['only_images'] = 'true'
             embeddings_json = XOSAPI().get(
                 'embeddings',
                 params,
             ).json()
             for embedding in embeddings_json['results']:
                 self.add_embedding(embedding, collection_name=embedding_type)
-                self.embeddings[embedding_type].append({
-                    'id': str(embedding['id']),
-                    'work': str(embedding['work'] or embedding['video']),
-                })
             print(f'Added {len(embeddings_json["results"])} {embedding_type} page {page}')
             page += 1
             if not embeddings_json['next']:
@@ -465,6 +508,7 @@ class XOSAPI():  # pylint: disable=too-few-public-methods
             self.headers['Authorization'] = f'Token {AUTH_TOKEN}'
         self.params = {
             'page_size': 10,
+            'ordering': 'id',
         }
 
     def get(self, resource, params=None):
@@ -508,14 +552,19 @@ with application.app_context():
     if not CHROMA:
         CHROMA = Chroma()
         CHROMA.get_collection()
+        if REBUILD:
+            print('Rebuilding the collection...')
+            CHROMA.add_pages_of_embeddings()
+            CHROMA.get_collection('videos')
+            CHROMA.add_pages_of_embeddings(embedding_type='videos')
+            CHROMA.get_collection('images')
+            CHROMA.add_pages_of_embeddings(embedding_type='images')
         print(f'Loading embeddings from {DATABASE_PATH}...')
         CHROMA.load_embeddings()
         CHROMA.get_collection('videos')
         CHROMA.load_embeddings('videos')
-        if REBUILD:
-            print('Rebuilding the collection...')
-            CHROMA.add_pages_of_embeddings()
-            CHROMA.add_pages_of_embeddings(embedding_type='videos')
+        CHROMA.get_collection('images')
+        CHROMA.load_embeddings('images')
     print('===================================')
 
 

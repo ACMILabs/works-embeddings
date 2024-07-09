@@ -164,7 +164,7 @@ cython_debug/
 .chroma
 ._works_db
 works_db
-works_db.tar.gz
+works_db*.tar.gz
 
 # Balena docker-compose file
 docker-compose.yml
