@@ -364,7 +364,7 @@
     }
 
     function reloadHomepage() {
-        window.location.href = '/{% if request.args.json %}?json={{ request.args.json }}{% endif %}';
+        window.location.href = '/{{ path }}{% if request.args.json %}?json={{ request.args.json }}{% endif %}';
     }
 
     function resetWiggleTimer() {
