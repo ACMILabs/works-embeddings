@@ -197,6 +197,7 @@ def thumbnail(item_id):
         image_json = xos.get(f'images/{item_id_only}').json()
         image_url = image_json.get('image_file_thumbnail')
         img_data = requests.get(image_url, timeout=10).content
+        os.makedirs(os.path.dirname(tmp_image_path), exist_ok=True)
         with open(tmp_image_path, 'wb') as image_file:
             image_file.write(img_data)
         image_path = os.path.join('static', 'cache', f'{item_id}.jpg')
