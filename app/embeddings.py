@@ -135,7 +135,7 @@ def video_and_image_response(page_request):  # pylint: disable=too-many-branches
     filtered_embeddings = embeddings
 
     if image or text:
-        SELECTED_WORK_ID = 'TODO'
+        SELECTED_WORK_ID = None
         # Create OpenCLIP embedding of the query
         clip = OPENCLIP.get_embeddings(image=image, text_string=text, openai_format=False)[0]
         results = CHROMA.search(clip, size, collection_name=path)
@@ -147,7 +147,7 @@ def video_and_image_response(page_request):  # pylint: disable=too-many-branches
                         embedding['distance'] = results['distances'][0][index]
                         filtered_embeddings.append(embedding)
     elif work:  # pylint: disable=too-many-nested-blocks
-        SELECTED_WORK_ID = work
+        SELECTED_WORK_ID = work_id_from_item_id(work)
         for embedding in embeddings:
             if str(embedding['work']) == work:
                 result = CHROMA.collections[path].get(
@@ -321,6 +321,8 @@ def work_id_from_item_id(item_id):
                 work_id = image_json['works'][0]
             except (IndexError, KeyError):
                 pass
+        elif work_id_parts[0] == 'work':
+            work_id = work_id_parts[1]
     else:
         work_id = item_id
     return work_id
