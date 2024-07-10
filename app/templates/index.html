@@ -9,8 +9,8 @@
 </head>
 <body>
     <header>
-        <h1 class="{% if request.args.work %}selected{% endif %} {{ path }}"><a href="/{{ path }}{% if request.args.json %}?json={{ request.args.json }}{% endif %}">Collection {% if path %}{{ path }} {% endif %}explorer</a></h1>
-        {% if (path == 'images' or path == 'videos') and not request.args.work %}
+        <h1 class="{% if request.args.work %}selected{% endif %}{% if text_search %} {{ path }}{% endif %}"><a href="/{{ path }}{% if request.args.json %}?json={{ request.args.json }}{% endif %}">Collection {% if path %}{{ path }} {% endif %}explorer</a></h1>
+        {% if text_search and (path == 'images' or path == 'videos') and not request.args.work %}
             <form>
                 <input type="text" name="text" id="text" placeholder="What are you looking for?" value="{% if text %}{{ text }}{% endif %}" autofocus>
             </form>

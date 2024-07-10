@@ -20,6 +20,7 @@ DATABASE_PATH = os.getenv('DATABASE_PATH', '')
 PORT = int(os.getenv('PORT', '8081'))
 DEFAULT_TEMPLATE_JSON = os.getenv('DEFAULT_TEMPLATE_JSON', 'true').lower()
 REFRESH_TIMEOUT = int(os.getenv('REFRESH_TIMEOUT', '0') or '0')
+TEXT_SEARCH = os.getenv('TEXT_SEARCH', 'false').lower() == 'true'
 
 LENS_READER_TAPS_API = os.getenv('LENS_READER_TAPS_API', None)
 AUTH_TOKEN = os.getenv('AUTH_TOKEN', None)
@@ -134,7 +135,7 @@ def video_and_image_response(page_request):  # pylint: disable=too-many-branches
     embeddings = CHROMA.embeddings.get(path)
     filtered_embeddings = embeddings
 
-    if image or text:
+    if (image or text) and TEXT_SEARCH:
         SELECTED_WORK_ID = None
         # Create OpenCLIP embedding of the query
         clip = OPENCLIP.get_embeddings(image=image, text_string=text, openai_format=False)[0]
@@ -175,6 +176,7 @@ def video_and_image_response(page_request):  # pylint: disable=too-many-branches
             refresh_timeout=REFRESH_TIMEOUT,
             text=text,
             path=path,
+            text_search=TEXT_SEARCH,
         )
 
     return jsonify(filtered_embeddings)
@@ -549,7 +551,7 @@ class XOSAPI():  # pylint: disable=too-few-public-methods
 
 with application.app_context():
     print('===================================')
-    if not OPENCLIP:
+    if not OPENCLIP and TEXT_SEARCH:
         print('Starting up OpenCLIP...')
         OPENCLIP = ImageEmbedding()
     if not CHROMA:
