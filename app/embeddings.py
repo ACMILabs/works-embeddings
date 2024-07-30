@@ -394,6 +394,7 @@ class Chroma():
                 params['only_videos'] = 'true'
             elif embedding_type == 'images':
                 params['only_images'] = 'true'
+                params['page_size'] = 100
             embeddings_json = XOSAPI().get(
                 'embeddings',
                 params,
@@ -544,6 +545,7 @@ class XOSAPI():  # pylint: disable=too-few-public-methods
                     f'exception: {exception}... retrying',
                 )
                 retries += 1
+                time.sleep(5)
                 if retries == XOS_RETRIES:
                     raise exception
         return None
@@ -560,10 +562,13 @@ with application.app_context():
         if REBUILD:
             print('Rebuilding the collection...')
             CHROMA.add_pages_of_embeddings()
+            print('Finished works...')
             CHROMA.get_collection('videos')
             CHROMA.add_pages_of_embeddings(embedding_type='videos')
+            print('Finished videos...')
             CHROMA.get_collection('images')
             CHROMA.add_pages_of_embeddings(embedding_type='images')
+            print('Finished images...')
         print(f'Loading embeddings from {DATABASE_PATH}...')
         CHROMA.load_embeddings()
         CHROMA.get_collection('videos')
@@ -579,4 +584,5 @@ if __name__ == '__main__':
         port=PORT,
         debug=DEBUG,
         use_reloader=False,
+        threaded=True,
     )
