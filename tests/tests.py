@@ -12,6 +12,7 @@ def test_root(_, __):
         response = client.get('/?json=false')
         assert response.status_code == 200
         assert 'ACMI Collection explorer' in response.text
+        assert 'Empty vector database' in response.text
 
 
 @patch('app.embeddings.chromadb')
