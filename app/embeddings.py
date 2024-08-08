@@ -13,6 +13,7 @@ import torch
 
 DEBUG = os.getenv('DEBUG', 'false').lower() == 'true'
 REBUILD = os.getenv('REBUILD', 'false').lower() == 'true'
+PAGES = os.getenv('PAGES', '999999')
 XOS_API_ENDPOINT = os.getenv('XOS_API_ENDPOINT', None)
 XOS_RETRIES = int(os.getenv('XOS_RETRIES', '1'))
 XOS_TIMEOUT = int(os.getenv('XOS_TIMEOUT', '120'))
@@ -376,7 +377,7 @@ class Chroma():
             )
         return embeddings_added
 
-    def add_pages_of_embeddings(self, pages=999999, embedding_type='works'):
+    def add_pages_of_embeddings(self, pages=int(PAGES), embedding_type='works'):
         """
         Add pages of XOS Embeddings API results to Chroma.
         """
