@@ -190,7 +190,7 @@ def thumbnail(item_id):
     image_path = None
     max_image_dimension = 600
     item_id_only = item_id.split('_')[1]
-    timestamp = item_id.split('_')[2]
+    timestamp = item_id.split('_')[-1]
     tmp_image_path = os.path.join(application.root_path, 'static', 'cache', f'{item_id}.jpg')
     if os.path.isfile(tmp_image_path):
         image_path = os.path.join('static', 'cache', f'{item_id}.jpg')
@@ -308,24 +308,16 @@ def work_id_from_item_id(item_id):
     """
     Returns the Work ID from a Video or Image ID.
     """
-    xos = XOSAPI()
     work_id = None
-    work_id_parts = item_id.split('_')
-    if len(work_id_parts) > 1:
-        if work_id_parts[0] == 'video':
+    item_id_parts = item_id.split('_')
+    if len(item_id_parts) > 1:
+        if item_id_parts[0] == 'video' or item_id_parts[0] == 'image':
             try:
-                video_json = xos.get(f'assets/{work_id_parts[1]}').json()
-                work_id = video_json['works'][0]['id']
-            except IndexError:
+                work_id = int(item_id_parts[2])
+            except (IndexError, ValueError):
                 pass
-        elif work_id_parts[0] == 'image':
-            try:
-                image_json = xos.get(f'images/{work_id_parts[1]}').json()
-                work_id = image_json['works'][0]
-            except (IndexError, KeyError):
-                pass
-        elif work_id_parts[0] == 'work':
-            work_id = work_id_parts[1]
+        elif item_id_parts[0] == 'work':
+            work_id = item_id_parts[1]
     else:
         work_id = item_id
     return work_id
@@ -363,11 +355,15 @@ class Chroma():
         for embedding_item in embeddings_json['data']['data']:
             prefix = 'work_'
             suffix = ''
-            item_id = embeddings_json['work'] or embeddings_json['video'] or embeddings_json['image']
+            item_id = f"work_{embeddings_json['work']}"
             if embeddings_json['video']:
                 prefix = 'video_'
+                item_id = f"{embeddings_json['video']['id']}_{embeddings_json['video']['work_id']}"
             if embeddings_json['image']:
                 prefix = 'image_'
+                item_id = f"{embeddings_json['image']['id']}_{embeddings_json['image']['work_id']}"
+                if not embeddings_json['image'].get('work_id'):
+                    continue
             if embedding_item.get('timestamp') is not None:
                 suffix = f"_{embedding_item['timestamp']}"
             embeddings_added.append(
@@ -405,7 +401,7 @@ class Chroma():
             page += 1
             if not embeddings_json['next']:
                 print(
-                    f'Finished adding {len(CHROMA.embeddings.get(embedding_type))} {embedding_type}.',
+                    f'Finished adding {len(self.embeddings.get(embedding_type))} {embedding_type}.',
                 )
                 break
 
