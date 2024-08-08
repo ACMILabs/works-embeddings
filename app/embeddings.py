@@ -360,6 +360,8 @@ class Chroma():
             if embeddings_json['video']:
                 prefix = 'video_'
                 item_id = f"{embeddings_json['video']['id']}_{embeddings_json['video']['work_id']}"
+                if embedding_item.get('timestamp') == 0.0:
+                    continue
             if embeddings_json['image']:
                 prefix = 'image_'
                 item_id = f"{embeddings_json['image']['id']}_{embeddings_json['image']['work_id']}"
