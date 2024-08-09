@@ -383,6 +383,7 @@ class Chroma():
         """
         Add pages of XOS Embeddings API results to Chroma.
         """
+        added = 0
         page = 1
         while page < (pages + 1):
             params = {'page': page, 'page_size': 10, 'ordering': 'id'}
@@ -402,13 +403,12 @@ class Chroma():
             ).json()
             for embedding in embeddings_json['results']:
                 self.add_embedding(embedding, collection_name=embedding_type)
+                added += 1
             print(f'Added {len(embeddings_json["results"])} {embedding_type} page {page}')
             page += 1
             if not embeddings_json['next']:
-                print(
-                    f'Finished adding {len(self.embeddings.get(embedding_type))} {embedding_type}.',
-                )
                 break
+        print(f'Finished adding {added} {embedding_type}.')
 
     def load_embeddings(self, collection_name='works'):
         """
