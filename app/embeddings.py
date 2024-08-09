@@ -391,8 +391,10 @@ class Chroma():
                 params['unpublished'] = 'false'
             elif embedding_type == 'videos':
                 params['only_videos'] = 'true'
+                params['unpublished'] = 'false'
             elif embedding_type == 'images':
                 params['only_images'] = 'true'
+                params['unpublished'] = 'false'
                 params['page_size'] = 100
             embeddings_json = XOSAPI().get(
                 'embeddings',
