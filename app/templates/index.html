@@ -4,12 +4,17 @@
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ACMI Collections explorer</title>
+    <title>ACMI Collection {% if path %}{{ path }} {% endif %}explorer</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles/index.css') }}">
 </head>
 <body>
     <header>
-        <h1 class="{% if request.args.work %}selected{% endif %}"><a href="/{% if request.args.json %}?json={{ request.args.json }}{% endif %}">Collections explorer</a></h1>
+        <h1 class="{% if request.args.work %}selected{% endif %}{% if text_search %} {{ path }}{% endif %}"><a href="/{{ path }}{% if request.args.json %}?json={{ request.args.json }}{% endif %}">Collection {% if path %}{{ path }} {% endif %}explorer</a></h1>
+        {% if text_search and embeddings and (path == 'images' or path == 'videos') and not request.args.work %}
+            <form>
+                <input type="text" name="text" id="text" placeholder="What are you looking for?" value="{% if text %}{{ text }}{% endif %}" autofocus>
+            </form>
+        {% endif %}
         <a href="#appinfo" onclick="openApplicationInformation()"><img class="info app" src="{{ url_for('static', filename='images/info.svg') }}" alt="More information about the Collections explorer" title="More information about the Collections explorer"></a>
         {% if request.args.work %}
             <a href="#back" onclick="goBack()">
@@ -20,7 +25,7 @@
             <div class="container">
                 <span class="close"><a href="#close"><img src="{{ url_for('static', filename='images/close.svg') }}" alt="Close this popup" title="Close this popup"></a></span>
                 <div>
-                    <h1>What is the collections explorer?</h1>
+                    <h1>What is the collection explorer?</h1>
                     <h2>A way to explore the ACMI collection when you don't know what you're looking for!</h2>
                     <span class="description">
                         <p>We're always looking for new ways to discover and access our collection. The recent development of large language models has created new opportunities by encoding human language into a format that's easy for computers to work with. One of those formats is embeddings.</p>
@@ -30,6 +35,7 @@
                         <p>This collection explorer uses embeddings to show you algorithmically matching works as you tap and explore.</p>
                         <p>See what the machine sees / see what the algorithm recommends...</p>
                         <p>Read more about it at: <strong>labs.acmi.net.au</strong></p>
+                        <p>Try our <a href="/">metadata</a>, <a href="/images/">images</a>, or <a href="/videos/">videos</a> explorer.</p>
                     </span>
                 </div>
             </div>
@@ -38,20 +44,23 @@
     <ol class="{% if request.args.work %}selected{% endif %}">
     {% for embedding in embeddings %}
         <li id="{{ embedding.work }}" class="{% if request.args.work %}{% if loop.index0 %}{% else %}selected{% endif %}{% endif %}">
-            <a href="/?work={{ embedding.work }}{% if request.args.json %}&json={{ request.args.json }}{% endif %}"><div class="circle"><div class="image"></div></div></a>
+            <a href="/{{ path }}?work={{ embedding.work }}{% if request.args.json %}&json={{ request.args.json }}{% endif %}"><div class="circle"><div class="image"></div></div></a>
             <p class="title">
-                <a href="/?work={{ embedding.work }}{% if request.args.json %}&json={{ request.args.json }}{% endif %}">Loading...</a>
+                <a href="/{{ path }}?work={{ embedding.work }}{% if request.args.json %}&json={{ request.args.json }}{% endif %}">Loading...</a>
             </p>
             {% if request.args.work %}
                 {% if loop.index0 %}
                 {% else %}
-                    <p class="title-related">Algorithmically related works:</p>
+                    <p class="title-related">Algorithmically related works {% if path == 'images' %}by image{% elif path == 'videos' %}by image frame{% endif %}:</p>
                 {% endif %}
             {% endif %}
-            {% if embedding.distance and request.args.work %}
+            {% if embedding.distance and (request.args.work or request.args.text) %}
                 <p class="distance">{{ embedding.distance|format_distance }}% match </p>
             {% elif not request.args.work %}
                 <p class="distance">Tap to see matches </p>
+            {% endif %}
+            {% if path == 'videos' %}
+                <p class="timestamp">{{ embedding.work|format_timestamp }} mins </p>
             {% endif %}
             <!-- More information -->
             <div class="info-modal">
@@ -66,17 +75,20 @@
                     <div class="right">
                         <h2>Description</h2>
                         <span class="description"></span>
-                        <p class="title-related">Algorithmically related works:</p>
+                        <p class="title-related">Algorithmically related works {% if path == 'images' %}by image{% elif path == 'videos' %}by image frame{% endif %}:</p>
                         <ol>
                         {% for embedding in embeddings %}
                             {% if not loop.first %}
                                 <li id="modal-{{ embedding.work }}" class="modal-works">
-                                    <a href="/?work={{ embedding.work }}{% if request.args.json %}&json={{ request.args.json }}{% endif %}"><div class="circle"><div class="image"></div></div></a>
+                                    <a href="/{{ path }}?work={{ embedding.work }}{% if request.args.json %}&json={{ request.args.json }}{% endif %}"><div class="circle"><div class="image"></div></div></a>
                                     <p class="title">
-                                        <a href="/?work={{ embedding.work }}{% if request.args.json %}&json={{ request.args.json }}{% endif %}">Loading...</a>
+                                        <a href="/{{ path }}?work={{ embedding.work }}{% if request.args.json %}&json={{ request.args.json }}{% endif %}">Loading...</a>
                                     </p>
                                     {% if embedding.distance and request.args.work %}
                                         <p class="distance">{{ embedding.distance|format_distance }}% match </p>
+                                    {% endif %}
+                                    {% if path == 'videos' %}
+                                        <p class="timestamp">{{ embedding.work|format_timestamp }} mins </p>
                                     {% endif %}
                                 </li>
                             {% endif %}
@@ -86,10 +98,13 @@
                 </div>
             </div>
         </li>
+    {% else %}
+        <h1>Empty vector database</h1>
+        <p>Please check the database directory you've set: <strong>DATABASE_PATH</strong>.</p>
     {% endfor %}
     </ol>
     <footer>
-        <a href="/{% if request.args.json %}?json={{ request.args.json }}{% endif %}"><p class="random"><img src="{{ url_for('static', filename='images/refresh.svg') }}" alt="Tap to reload a new selection of works" title="Tap to reload a new selection of works"><br>Random</p></a>
+        <a href="/{{ path }}{% if request.args.json %}?json={{ request.args.json }}{% endif %}"><p class="random"><img src="{{ url_for('static', filename='images/refresh.svg') }}" alt="Tap to reload a new selection of works" title="Tap to reload a new selection of works"><br>Random</p></a>
         <p class="prototype">Prototype in testing</p>
     </footer>
     <p class="collect-modal hidden">TAP YOUR LENS TO COLLECT</p>
@@ -221,28 +236,57 @@
                     element.getElementsByTagName('h2')[0].innerText = data.headline_credit;
                     element.getElementsByTagName('h3')[0].innerText = data.creator_credit;
                     element.getElementsByClassName('description')[0].innerHTML = getDescription(data);
-                    if (data.thumbnail) {
-                        const link = document.createElement('a');
-                        link.href = `/?work=${data.id}`;
-                        var images = element.getElementsByClassName('image');
-                        var imagesArray = Array.from(images).slice(0, 2);
-                        if (modalListElement !== null) {
-                            var modalImage = Array.from(modalListElement.getElementsByClassName('image'));
-                            imagesArray = imagesArray.concat(modalImage);
+                    {% if path == 'videos' or path == 'images' %}
+                        fetch(`/thumbnail/${element.id}/`, {
+                            method: 'get'
+                        }).then(function(thumbnailResponse) {
+                            return thumbnailResponse.json();
+                        }).then(function(thumbnailData) {
+                            if (thumbnailData.thumbnail) {
+                                var images = element.getElementsByClassName('image');
+                                var imagesArray = Array.from(images).slice(0, 2);
+                                if (modalListElement !== null) {
+                                    var modalImage = Array.from(modalListElement.getElementsByClassName('image'));
+                                    imagesArray = imagesArray.concat(modalImage);
+                                }
+                                for (const image of imagesArray) {
+                                    image.style.opacity = '0';
+                                    setTimeout(() => {
+                                        image.style.backgroundImage = `url(/${thumbnailData.thumbnail})`;
+                                        image.style.backgroundRepeat = 'no-repeat';
+                                        image.style.backgroundSize = 'cover';
+                                        image.style.backgroundPosition = 'center';
+                                        image.title = data.title;
+                                        image.alt = data.title;
+                                        image.style.opacity = '1';
+                                    }, 300);
+                                }
+                            }
+                        });
+                    {% else %}
+                        if (data.thumbnail) {
+                            const link = document.createElement('a');
+                            link.href = `/?work=${data.id}`;
+                            var images = element.getElementsByClassName('image');
+                            var imagesArray = Array.from(images).slice(0, 2);
+                            if (modalListElement !== null) {
+                                var modalImage = Array.from(modalListElement.getElementsByClassName('image'));
+                                imagesArray = imagesArray.concat(modalImage);
+                            }
+                            for (const image of imagesArray) {
+                                image.style.opacity = '0';
+                                setTimeout(() => {
+                                    image.style.backgroundImage = `url(${data.thumbnail.image_url})`;
+                                    image.style.backgroundRepeat = 'no-repeat';
+                                    image.style.backgroundSize = 'cover';
+                                    image.style.backgroundPosition = 'center';
+                                    image.title = data.title;
+                                    image.alt = data.title;
+                                    image.style.opacity = '1';
+                                }, 300);
+                            }
                         }
-                        for (const image of imagesArray) {
-                            image.style.opacity = '0';
-                            setTimeout(() => {
-                                image.style.backgroundImage = `url(${data.thumbnail.image_url})`;
-                                image.style.backgroundRepeat = 'no-repeat';
-                                image.style.backgroundSize = 'cover';
-                                image.style.backgroundPosition = 'center';
-                                image.title = data.title;
-                                image.alt = data.title;
-                                image.style.opacity = '1';
-                            }, 300);
-                        }
-                    }
+                    {% endif %}
                     limitWordCount('.title', 7);
                 }
             }).catch(function(err) {
@@ -261,7 +305,6 @@
         applicationInfromationModal.addEventListener('click', function (event) {
             applicationInfromationModal.style.opacity = 0;
             applicationInfromationModal.style.zIndex = -1;
-            event.preventDefault();
         });
     }
 
@@ -324,7 +367,7 @@
     }
 
     function reloadHomepage() {
-        window.location.href = '/{% if request.args.json %}?json={{ request.args.json }}{% endif %}';
+        window.location.href = '/{{ path }}{% if request.args.json %}?json={{ request.args.json }}{% endif %}';
     }
 
     function resetWiggleTimer() {
@@ -338,8 +381,10 @@
     }
 
     function resetTimers() {
-        resetWiggleTimer();
-        resetInactivityTimer();
+        {% if refresh_timeout > 0 %}
+            resetWiggleTimer();
+            resetInactivityTimer();
+        {% endif %}
     }
 
     // Event listeners for user actions
@@ -349,9 +394,7 @@
     document.addEventListener('touchstart', resetTimers);
 
     // Initialize the timers if a refresh timeout is set
-    {% if refresh_timeout > 0 %}
-        resetTimers();
-    {% endif %}
+    resetTimers();
 
     // Fade in the page after it loads
     window.onload = function() {

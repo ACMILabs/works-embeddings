@@ -1,6 +1,6 @@
 FROM python:3.10
 
-RUN apt update && apt install make
+RUN apt update && apt install make ffmpeg -y
 
 COPY ./requirements/base.txt /code/requirements/base.txt
 COPY ./requirements/test.txt /code/requirements/test.txt
