@@ -189,7 +189,6 @@ def thumbnail(item_id):
     Returns a thumbnail image from an image ID or video ID at a given timestamp.
     """
     image_path = None
-    max_image_dimension = 600
     item_id_only = item_id.split('_')[1]
     timestamp = item_id.split('_')[-1]
     tmp_image_path = os.path.join(application.root_path, 'static', 'cache', f'{item_id}.jpg')
@@ -199,28 +198,29 @@ def thumbnail(item_id):
         xos = XOSAPI()
         image_json = xos.get(f'images/{item_id_only}').json()
         image_url = image_json.get('image_file_thumbnail')
-        img_data = requests.get(image_url, timeout=10).content
-        os.makedirs(os.path.dirname(tmp_image_path), exist_ok=True)
-        with open(tmp_image_path, 'wb') as image_file:
-            image_file.write(img_data)
-        image_path = os.path.join('static', 'cache', f'{item_id}.jpg')
+        if image_url:
+            img_data = requests.get(image_url, timeout=10).content
+            os.makedirs(os.path.dirname(tmp_image_path), exist_ok=True)
+            with open(tmp_image_path, 'wb') as image_file:
+                image_file.write(img_data)
+            image_path = os.path.join('static', 'cache', f'{item_id}.jpg')
     else:
         xos = XOSAPI()
-        video_json = xos.get(f'assets/{item_id_only}').json()
-        video_url = video_json.get('web_resource') or video_json.get('resource')
-        if video_url:
-            command = [
-                'ffmpeg',
-                '-ss', str(timestamp),
-                '-i', video_url,
-                '-vframes', '1',
-                '-q:v', '10',
-                '-vf', f"scale='if(gt(iw,{max_image_dimension}),{max_image_dimension},iw)':"
-                       f"'if(gt(ih,{max_image_dimension}),{max_image_dimension},ih)'",
-                tmp_image_path,
-            ]
-            subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
-            image_path = os.path.join('static', 'cache', f'{item_id}.jpg')
+        video_response = xos.get(f'assets/{item_id_only}')
+        if video_response:
+            video_json = video_response.json()
+            video_url = video_json.get('web_resource') or video_json.get('resource')
+            if video_url:
+                command = [
+                    'ffmpeg',
+                    '-ss', str(timestamp),
+                    '-i', video_url,
+                    '-vframes', '1',
+                    '-q:v', '10',
+                    tmp_image_path,
+                ]
+                subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
+                image_path = os.path.join('static', 'cache', f'{item_id}.jpg')
     return jsonify({'thumbnail': image_path})
 
 
@@ -301,7 +301,9 @@ if DEBUG:
         xos = XOSAPI()
         work_id = work_id_from_item_id(work_id)
         if work_id:
-            return jsonify(xos.get(f'works/{work_id}').json())
+            work_data = xos.get(f'works/{work_id}')
+            if work_data:
+                return jsonify(work_data.json())
         return jsonify({'error': 'No work attached to this video.'}), 404
 
 
@@ -353,7 +355,7 @@ class Chroma():
         embeddings_added = []
         if not self.collections.get(collection_name):
             raise NoCollectionException(f'Please create or load the collection {collection_name}')
-        for embedding_item in embeddings_json['data']['data']:
+        for embedding_item in embeddings_json['data'].get('data') or []:
             prefix = 'work_'
             suffix = ''
             item_id = f"work_{embeddings_json['work']}"
@@ -534,6 +536,8 @@ class XOSAPI():  # pylint: disable=too-few-public-methods
                     params=params,
                     timeout=XOS_TIMEOUT,
                 )
+                if response.status_code == 404:
+                    return None
                 response.raise_for_status()
                 return response
             except (
