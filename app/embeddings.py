@@ -320,7 +320,7 @@ def work_id_from_item_id(item_id):
             except (IndexError, ValueError):
                 pass
         elif item_id_parts[0] == 'work':
-            work_id = item_id_parts[1]
+            work_id = item_id_parts[-1]
     else:
         work_id = item_id
     return work_id
@@ -358,7 +358,7 @@ class Chroma():
         for embedding_item in embeddings_json['data'].get('data') or []:
             prefix = 'work_'
             suffix = ''
-            item_id = f"work_{embeddings_json['work']}"
+            item_id = embeddings_json['work']
             if embeddings_json['video']:
                 prefix = 'video_'
                 item_id = f"{embeddings_json['video']['id']}_{embeddings_json['video']['work_id']}"
