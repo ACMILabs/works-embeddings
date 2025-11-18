@@ -11,7 +11,7 @@ env:
 
 jobs:
   build-embeddings:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest-m
 
     steps:
       - name: Cancel previous runs
@@ -40,7 +40,7 @@ jobs:
 
   build-and-test-python:
     needs: [build-embeddings]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest-m
 
     steps:
     - uses: actions/checkout@v3
@@ -62,7 +62,7 @@ jobs:
   build-embeddings-latest:
     if: github.ref == 'refs/heads/main'
     needs: [build-and-test-python]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest-m
 
     steps:
       - name: Cancel previous runs
@@ -89,7 +89,7 @@ jobs:
   deploy:
     needs: [build-and-test-python, build-embeddings-latest]
     if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest-m
     steps:
     - uses: actions/checkout@v2
     - name: Azure authentication
