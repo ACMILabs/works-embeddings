@@ -356,7 +356,7 @@ class Chroma():
         if not self.collections.get(collection_name):
             raise NoCollectionException(f'Please create or load the collection {collection_name}')
         for embedding_item in embeddings_json['data'].get('data') or []:
-            prefix = 'work_'
+            prefix = ''
             suffix = ''
             item_id = embeddings_json['work']
             if embeddings_json['video']:
