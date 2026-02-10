@@ -1,15 +1,16 @@
 import json
 import os
 import random
-import time
 import subprocess
-import requests
-from flask import Flask, jsonify, render_template, request, Response
-from PIL import Image
+import threading
+import time
 
 import chromadb
 import open_clip
+import requests
 import torch
+from flask import Flask, Response, jsonify, render_template, request
+from PIL import Image
 
 DEBUG = os.getenv('DEBUG', 'false').lower() == 'true'
 REBUILD = os.getenv('REBUILD', 'false').lower() == 'true'
@@ -31,6 +32,9 @@ CHROMA = None
 OPENCLIP = None
 SELECTED_WORK_ID = None
 SUCCESSFUL_TAP = None
+LOADING = False
+LOADED = False
+LOAD_ERROR = None
 
 
 def normalise_distance(distance, min_distance=30, max_distance=1200):
@@ -70,7 +74,7 @@ def home():
     work = request.args.get('work', None)
     size = int(request.args.get('size', '11'))
     global SELECTED_WORK_ID  # pylint: disable=global-statement
-    embeddings = CHROMA.embeddings.get('works')
+    embeddings = CHROMA.embeddings.get('works') if CHROMA else []
     filtered_embeddings = embeddings
 
     if work:
@@ -133,10 +137,10 @@ def video_and_image_response(page_request):  # pylint: disable=too-many-branches
     size = int(page_request.args.get('size', '11'))
     path = page_request.path.replace('/', '')
     global SELECTED_WORK_ID  # pylint: disable=global-statement
-    embeddings = CHROMA.embeddings.get(path)
+    embeddings = CHROMA.embeddings.get(path) if CHROMA else []
     filtered_embeddings = embeddings
 
-    if (image or text) and TEXT_SEARCH:
+    if (image or text) and TEXT_SEARCH and OPENCLIP and CHROMA:
         SELECTED_WORK_ID = None
         # Create OpenCLIP embedding of the query
         clip = OPENCLIP.get_embeddings(image=image, text_string=text, openai_format=False)[0]
@@ -556,31 +560,92 @@ class XOSAPI():  # pylint: disable=too-few-public-methods
         return None
 
 
-with application.app_context():
-    print('===================================')
-    if not OPENCLIP and TEXT_SEARCH:
-        print('Starting up OpenCLIP...')
-        OPENCLIP = ImageEmbedding()
-    if not CHROMA:
-        CHROMA = Chroma()
-        CHROMA.get_collection()
-        if REBUILD:
-            print('Rebuilding the collection...')
-            CHROMA.add_pages_of_embeddings()
-            print('Finished works...')
+def run_loader():
+    """
+    Loads OpenCLIP and Chroma embeddings into memory.
+    """
+    global OPENCLIP  # pylint: disable=global-statement
+    global CHROMA  # pylint: disable=global-statement
+    global LOADED  # pylint: disable=global-statement
+    with application.app_context():
+        print('===================================')
+        if not OPENCLIP and TEXT_SEARCH:
+            print('Starting up OpenCLIP...')
+            OPENCLIP = ImageEmbedding()
+        if not CHROMA:
+            CHROMA = Chroma()
+            CHROMA.get_collection()
+            if REBUILD:
+                print('Rebuilding the collection...')
+                CHROMA.add_pages_of_embeddings()
+                print('Finished works...')
+                CHROMA.get_collection('videos')
+                CHROMA.add_pages_of_embeddings(embedding_type='videos')
+                print('Finished videos...')
+                CHROMA.get_collection('images')
+                CHROMA.add_pages_of_embeddings(embedding_type='images')
+                print('Finished images...')
+            print(f'Loading embeddings from {DATABASE_PATH}...')
+            CHROMA.load_embeddings()
             CHROMA.get_collection('videos')
-            CHROMA.add_pages_of_embeddings(embedding_type='videos')
-            print('Finished videos...')
+            CHROMA.load_embeddings('videos')
             CHROMA.get_collection('images')
-            CHROMA.add_pages_of_embeddings(embedding_type='images')
-            print('Finished images...')
-        print(f'Loading embeddings from {DATABASE_PATH}...')
-        CHROMA.load_embeddings()
-        CHROMA.get_collection('videos')
-        CHROMA.load_embeddings('videos')
-        CHROMA.get_collection('images')
-        CHROMA.load_embeddings('images')
-    print('===================================')
+            CHROMA.load_embeddings('images')
+        LOADED = True
+        print('===================================')
+
+
+def run_loader_in_background():
+    """
+    Wrapper for background loading state management.
+    """
+    global LOADING  # pylint: disable=global-statement
+    global LOAD_ERROR  # pylint: disable=global-statement
+    try:
+        run_loader()
+    except Exception as exception:  # pylint: disable=broad-except
+        LOAD_ERROR = str(exception)
+        print(f'Loader failed: {exception}')
+    finally:
+        LOADING = False
+
+
+@application.route('/load', methods=['GET', 'POST'])
+def load():
+    """
+    Loads embeddings and models once the server is running.
+    """
+    global LOADING  # pylint: disable=global-statement
+    global LOAD_ERROR  # pylint: disable=global-statement
+
+    status_only = request.method == 'GET' and request.args.get('status', 'false').lower() == 'true'
+    if status_only:
+        status = 'not_started'
+        if LOADED:
+            status = 'loaded'
+        elif LOADING:
+            status = 'loading'
+        elif LOAD_ERROR:
+            status = 'error'
+        response = {'status': status}
+        if LOAD_ERROR:
+            response['error'] = LOAD_ERROR
+        return jsonify(response)
+
+    if LOADED:
+        return jsonify({'status': 'loaded'})
+    if LOADING:
+        return jsonify({'status': 'loading'}), 202
+
+    LOADING = True
+    LOAD_ERROR = None
+    loader_thread = threading.Thread(target=run_loader_in_background, daemon=True)
+    loader_thread.start()
+    return jsonify({'status': 'loading'}), 202
+
+
+if not os.getenv('PRODUCTION', 'false').lower() == 'true':
+    run_loader()
 
 
 if __name__ == '__main__':

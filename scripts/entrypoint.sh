@@ -37,7 +37,7 @@ else
 fi
 
 # Start the web server
-if [ "$DEBUG" = "true" ]; then
+if [ "$DEBUG" = "true" ] && [ "$PRODUCTION" != "true" ]; then
     echo "Starting Flask server..."
     python -u -m app.embeddings
 
@@ -48,7 +48,8 @@ else
         --log-level DEBUG \
         --pythonpath $PYTHON_PATH \
         --workers 1 \
-        --bind 0.0.0.0:80 \
+        --bind 0.0.0.0:$PORT \
         --timeout 120 \
-        --reload
+        --worker-connections 1000 \
+        --keep-alive 30
 fi
