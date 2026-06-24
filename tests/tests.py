@@ -4,17 +4,48 @@ import app.embeddings as embeddings_module
 from app.embeddings import application, format_distance, format_timestamp, normalise_distance
 
 
+class FakeCollection:
+    """
+    Minimal Chroma collection double for loader tests.
+    """
+    def __init__(self, items):
+        self.items = items
+        self.get_calls = []
+
+    def count(self):
+        """
+        Return the fake collection size.
+        """
+        return len(self.items)
+
+    def get(self, limit=None, offset=None, include=None):
+        """
+        Return one page of fake collection data.
+        """
+        self.get_calls.append({
+            'limit': limit,
+            'offset': offset,
+            'include': include,
+        })
+        page = self.items[offset:offset + limit]
+        return {
+            'ids': [item['id'] for item in page],
+            'documents': [item['document'] for item in page],
+        }
+
+
 @patch('app.embeddings.chromadb')
 @patch('app.embeddings.open_clip')
 def test_root(_, __):
     """
     Test the Collections embeddings root returns expected content.
     """
-    with application.test_client() as client:
-        response = client.get('/?json=false')
-        assert response.status_code == 200
-        assert 'ACMI Collection explorer' in response.text
-        assert 'Empty vector database' in response.text
+    with patch.object(embeddings_module, 'CHROMA', None):
+        with application.test_client() as client:
+            response = client.get('/?json=false')
+            assert response.status_code == 200
+            assert 'ACMI Collection explorer' in response.text
+            assert 'Empty vector database' in response.text
 
 
 @patch('app.embeddings.chromadb')
@@ -67,6 +98,50 @@ def test_format_timestamp():
     assert format_timestamp('123_45.0') == '0:45'
     assert format_timestamp('123_189.0') == '3:09'
     assert format_timestamp('123_999.123') == '16:39'
+
+
+@patch('app.embeddings.CHROMA_LOAD_PAGE_SIZE', 2)
+@patch('app.embeddings.chromadb')
+def test_chroma_load_embeddings_pages_collection(_):
+    """
+    Chroma embeddings are loaded in bounded pages.
+    """
+    fake_collection = FakeCollection([
+        {'id': '1', 'document': 'work_1'},
+        {'id': '2', 'document': 'work_2'},
+        {'id': '3', 'document': 'work_3'},
+    ])
+    chroma = embeddings_module.Chroma()
+    chroma.collections['works'] = fake_collection
+
+    chroma.load_embeddings()
+
+    assert chroma.embeddings['works'] == [
+        {'id': '1', 'work': 'work_1'},
+        {'id': '2', 'work': 'work_2'},
+        {'id': '3', 'work': 'work_3'},
+    ]
+    assert fake_collection.get_calls == [
+        {'limit': 2, 'offset': 0, 'include': ['documents']},
+        {'limit': 2, 'offset': 2, 'include': ['documents']},
+    ]
+
+
+@patch('app.embeddings.chromadb')
+def test_chroma_load_embeddings_replaces_existing_cache(_):
+    """
+    Reloading a collection replaces the in-memory embedding cache.
+    """
+    fake_collection = FakeCollection([
+        {'id': '1', 'document': 'work_1'},
+    ])
+    chroma = embeddings_module.Chroma()
+    chroma.collections['works'] = fake_collection
+    chroma.embeddings['works'] = [{'id': 'stale', 'work': 'stale_work'}]
+
+    chroma.load_embeddings()
+
+    assert chroma.embeddings['works'] == [{'id': '1', 'work': 'work_1'}]
 
 
 def test_load_status_not_started():

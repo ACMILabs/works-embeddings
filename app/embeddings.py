@@ -23,6 +23,7 @@ PORT = int(os.getenv('PORT', '8081'))
 DEFAULT_TEMPLATE_JSON = os.getenv('DEFAULT_TEMPLATE_JSON', 'true').lower()
 REFRESH_TIMEOUT = int(os.getenv('REFRESH_TIMEOUT', '0') or '0')
 TEXT_SEARCH = os.getenv('TEXT_SEARCH', 'false').lower() == 'true'
+CHROMA_LOAD_PAGE_SIZE = int(os.getenv('CHROMA_LOAD_PAGE_SIZE', '1000'))
 
 LENS_READER_TAPS_API = os.getenv('LENS_READER_TAPS_API', None)
 AUTH_TOKEN = os.getenv('AUTH_TOKEN', None)
@@ -422,15 +423,23 @@ class Chroma():
         """
         if not self.collections.get(collection_name):
             self.get_collection(name=collection_name)
-        embedding_ids = self.collections[collection_name].get()['ids']
-        for index, embedding_id in enumerate(embedding_ids):
-            result = self.collections[collection_name].get(ids=embedding_id, include=['documents'])
-            self.embeddings[collection_name].append({
-                'id': result['ids'][0],
-                'work': result['documents'][0],
-            })
-            if index > 0 and index % 1000 == 0:
-                print(f'Loaded {index}...')
+        collection = self.collections[collection_name]
+        total_embeddings = collection.count()
+        self.embeddings[collection_name] = []
+        for offset in range(0, total_embeddings, CHROMA_LOAD_PAGE_SIZE):
+            result = collection.get(
+                limit=CHROMA_LOAD_PAGE_SIZE,
+                offset=offset,
+                include=['documents'],
+            )
+            for embedding_id, document in zip(result['ids'], result['documents']):
+                self.embeddings[collection_name].append({
+                    'id': embedding_id,
+                    'work': document,
+                })
+            loaded = len(self.embeddings[collection_name])
+            if loaded > 0 and loaded % 1000 == 0:
+                print(f'Loaded {loaded}...')
 
     def search(self, work_embeddings, number_of_results=2, collection_name='works'):
         """
