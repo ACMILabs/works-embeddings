@@ -1,4 +1,4 @@
-flask<3
+flask
 gunicorn
 pytz
 requests
