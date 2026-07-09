@@ -14,6 +14,27 @@ A recommendation engine for Works in the ACMI Collection using [OpenAI embedding
 * Start your environment: `make up`
 * Click a work to get its nearest neighbours: http://localhost:8081/?json=false
 
+### Text and image search
+
+The `/images/` and `/videos/` explorers can search by text or image query when `TEXT_SEARCH=true` is set in `config.env`.
+
+```text
+TEXT_SEARCH=true
+```
+
+Text queries use Hugging Face Transformers and `openai/clip-vit-large-patch14-336` to create a CLIP embedding:
+
+* http://localhost:8081/images/?json=false&text=red%20dress
+* http://localhost:8081/videos/?json=false&text=city%20street
+
+Image queries can pass a local image path inside the container or a URL:
+
+* http://localhost:8081/images/?json=false&image=https://example.com/image.jpg
+
+The first startup with `TEXT_SEARCH=true` downloads the CLIP model from Hugging Face. Set `HF_TOKEN` for higher Hugging Face Hub rate limits if needed. By default the model runs on CPU; set `TRANSFORMERS_DEVICE` to a supported PyTorch device such as `0` for `cuda:0` or `mps` for Apple Silicon.
+
+Chroma collections must contain embeddings with the same dimensions as the query model. `openai/clip-vit-large-patch14-336` returns 1024-dimensional vectors, so only search image/video collections built with the same model.
+
 ### Rebuild the Chroma database from your Embeddings API
 
 * Open `config.env` and set `REBUILD=true`

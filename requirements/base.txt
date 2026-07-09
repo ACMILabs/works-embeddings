@@ -3,5 +3,8 @@ gunicorn
 pytz
 requests
 chromadb>=0.3.26
-# OpenCLIP for image embeddings
-open_clip_torch==2.24.0
+pillow
+# Hugging Face Transformers for image embeddings
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch
+transformers
