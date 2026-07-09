@@ -33,12 +33,12 @@ Image queries can pass a local image path inside the container or a URL:
 
 The first startup with `TEXT_SEARCH=true` downloads the CLIP model from Hugging Face. Set `HF_TOKEN` for higher Hugging Face Hub rate limits if needed. By default the model runs on CPU; set `TRANSFORMERS_DEVICE` to a supported PyTorch device such as `0` for `cuda:0` or `mps` for Apple Silicon.
 
-Chroma collections must contain embeddings with the same dimensions as the query model. `openai/clip-vit-large-patch14-336` returns 1024-dimensional vectors, so only search image/video collections built with the same model.
+Chroma collections must contain embeddings with the same dimensions as the query model. `openai/clip-vit-large-patch14-336` returns 768-dimensional vectors, so rebuild the image/video collections after switching from the old OpenCLIP model.
 
 ### Rebuild the Chroma database from your Embeddings API
 
 * Open `config.env` and set `REBUILD=true`
-* Delete the `works_db` directory if it exists
+* Delete the `works_db` directory if it exists, especially after changing embedding models
 * Start the app: `make up`
 
 ## Create Embeddings
