@@ -1,11 +1,14 @@
+import ipaddress
 import json
 import os
 import random
+import socket
 import subprocess
 import tempfile
 import threading
 import time
 from collections.abc import Iterable
+from urllib.parse import urlparse
 
 import chromadb
 import requests
@@ -25,6 +28,10 @@ DEFAULT_TEMPLATE_JSON = os.getenv('DEFAULT_TEMPLATE_JSON', 'true').lower()
 REFRESH_TIMEOUT = int(os.getenv('REFRESH_TIMEOUT', '0') or '0')
 TEXT_SEARCH = os.getenv('TEXT_SEARCH', 'false').lower() == 'true'
 CHROMA_LOAD_PAGE_SIZE = int(os.getenv('CHROMA_LOAD_PAGE_SIZE', '1000'))
+IMAGE_SEARCH_ALLOWED_HOSTS = [
+    host.strip().lower() for host in os.getenv('IMAGE_SEARCH_ALLOWED_HOSTS', '').split(',') if host.strip()
+]
+IMAGE_SEARCH_MAX_DOWNLOAD_BYTES = int(os.getenv('IMAGE_SEARCH_MAX_DOWNLOAD_BYTES', str(10 * 1024 * 1024)))
 
 LENS_READER_TAPS_API = os.getenv('LENS_READER_TAPS_API', None)
 AUTH_TOKEN = os.getenv('AUTH_TOKEN', None)
@@ -476,24 +483,34 @@ class ImageEmbedding():
         """
         embeddings = None
         tokens = 0
+        downloaded_image_path = None
 
-        if image_path is not None or image is not None:
-            if isinstance(image, str) and image_path is None:
-                image_path = image if os.path.exists(image) else download_resource_to_tmp_file(image)
-            if image_path is not None:
-                image = Image.open(image_path)
-            inputs = self.prepare_inputs(images=image)
-            embeddings = tensor_to_embedding(
-                self.model.get_image_features(**inputs)
-            )
-            tokens = count_clip_input_tokens(inputs, self.model, is_image=True)
+        try:
+            if image_path is not None or image is not None:
+                if isinstance(image, str) and image_path is None:
+                    if os.path.exists(image):
+                        image_path = image
+                    else:
+                        image_path = download_resource_to_tmp_file(image)
+                        downloaded_image_path = image_path
+                if image_path is not None:
+                    with Image.open(image_path) as opened_image:
+                        image = opened_image.copy()
+                inputs = self.prepare_inputs(images=image)
+                embeddings = tensor_to_embedding(
+                    self.model.get_image_features(**inputs)
+                )
+                tokens = count_clip_input_tokens(inputs, self.model, is_image=True)
 
-        if text_string:
-            inputs = self.prepare_inputs(text=text_string)
-            embeddings = tensor_to_embedding(
-                self.model.get_text_features(**inputs)
-            )
-            tokens = count_clip_input_tokens(inputs, self.model)
+            if text_string:
+                inputs = self.prepare_inputs(text=text_string)
+                embeddings = tensor_to_embedding(
+                    self.model.get_text_features(**inputs)
+                )
+                tokens = count_clip_input_tokens(inputs, self.model)
+        finally:
+            if downloaded_image_path:
+                os.remove(downloaded_image_path)
 
         if embeddings and openai_format:
             embeddings = self.openai_embeddings_format(embeddings, tokens)
@@ -541,11 +558,46 @@ def download_resource_to_tmp_file(url):
     """
     Download a URL to a temporary file and return its path.
     """
-    response = requests.get(url, timeout=XOS_TIMEOUT)
+    validate_download_url(url)
+    response = requests.get(url, timeout=XOS_TIMEOUT, stream=True)
     response.raise_for_status()
+    content_type = response.headers.get('Content-Type', '').split(';')[0].lower()
+    if content_type and not content_type.startswith('image/'):
+        raise ValueError('Remote query image must be an image response')
+    content_length = response.headers.get('Content-Length')
+    if content_length and int(content_length) > IMAGE_SEARCH_MAX_DOWNLOAD_BYTES:
+        raise ValueError('Remote query image is too large')
     with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
-        tmp_file.write(response.content)
+        downloaded_bytes = 0
+        for chunk in response.iter_content(chunk_size=8192):
+            if not chunk:
+                continue
+            downloaded_bytes += len(chunk)
+            if downloaded_bytes > IMAGE_SEARCH_MAX_DOWNLOAD_BYTES:
+                tmp_file.close()
+                os.remove(tmp_file.name)
+                raise ValueError('Remote query image is too large')
+            tmp_file.write(chunk)
         return tmp_file.name
+
+
+def validate_download_url(url):
+    """
+    Validate remote image query URLs before fetching them.
+    """
+    parsed_url = urlparse(url)
+    if parsed_url.scheme not in ('http', 'https'):
+        raise ValueError('Remote query image URL must use http or https')
+    hostname = parsed_url.hostname
+    if not hostname:
+        raise ValueError('Remote query image URL must include a host')
+    hostname = hostname.lower()
+    if hostname not in IMAGE_SEARCH_ALLOWED_HOSTS:
+        raise ValueError('Remote query image host is not allowed')
+    for address_info in socket.getaddrinfo(hostname, parsed_url.port or None, type=socket.SOCK_STREAM):
+        address = ipaddress.ip_address(address_info[4][0])
+        if not address.is_global:
+            raise ValueError('Remote query image host resolves to a private address')
 
 
 def get_pipeline_device_kwargs():

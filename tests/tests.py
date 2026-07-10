@@ -101,7 +101,7 @@ class FakeInputs(dict):
         super().__init__(*args, **kwargs)
         self.device = None
 
-    def to(self, device):
+    def to(self, device):  # pylint: disable=invalid-name
         """
         Record the device that inputs were moved to.
         """
@@ -250,20 +250,70 @@ def test_get_projected_features_rejects_unprojected_outputs():
 
 
 @patch('app.embeddings.requests.get')
-def test_download_resource_to_tmp_file(mock_get):
+@patch('app.embeddings.socket.getaddrinfo', return_value=[(None, None, None, None, ('93.184.216.34', 443))])
+@patch('app.embeddings.IMAGE_SEARCH_ALLOWED_HOSTS', ['example.com'])
+def test_download_resource_to_tmp_file(_, mock_get):
     """
     Remote image URLs are downloaded to a temporary file path.
     """
     response = MagicMock()
-    response.content = b'image-data'
+    response.headers = {
+        'Content-Type': 'image/jpeg',
+        'Content-Length': '10',
+    }
+    response.iter_content.return_value = [b'image', b'-data']
     mock_get.return_value = response
 
     file_path = embeddings_module.download_resource_to_tmp_file('https://example.com/image.jpg')
 
-    mock_get.assert_called_once_with('https://example.com/image.jpg', timeout=embeddings_module.XOS_TIMEOUT)
+    mock_get.assert_called_once_with(
+        'https://example.com/image.jpg',
+        timeout=embeddings_module.XOS_TIMEOUT,
+        stream=True,
+    )
     response.raise_for_status.assert_called_once_with()
+    response.iter_content.assert_called_once_with(chunk_size=8192)
     with open(file_path, 'rb') as image_file:
         assert image_file.read() == b'image-data'
+    embeddings_module.os.remove(file_path)
+
+
+@patch('app.embeddings.IMAGE_SEARCH_ALLOWED_HOSTS', ['example.com'])
+def test_validate_download_url_rejects_invalid_urls():
+    """
+    Remote image URLs must use accepted schemes and allowed hosts.
+    """
+    with pytest.raises(ValueError):
+        embeddings_module.validate_download_url('file:///etc/passwd')
+    with pytest.raises(ValueError):
+        embeddings_module.validate_download_url('https://not-example.com/image.jpg')
+
+
+@patch('app.embeddings.socket.getaddrinfo', return_value=[(None, None, None, None, ('127.0.0.1', 443))])
+@patch('app.embeddings.IMAGE_SEARCH_ALLOWED_HOSTS', ['example.com'])
+def test_validate_download_url_rejects_private_addresses(_):
+    """
+    Allowed remote image hosts cannot resolve to private addresses.
+    """
+    with pytest.raises(ValueError):
+        embeddings_module.validate_download_url('https://example.com/image.jpg')
+
+
+@patch('app.embeddings.socket.getaddrinfo', return_value=[(None, None, None, None, ('93.184.216.34', 443))])
+@patch('app.embeddings.IMAGE_SEARCH_ALLOWED_HOSTS', ['example.com'])
+@patch('app.embeddings.IMAGE_SEARCH_MAX_DOWNLOAD_BYTES', 4)
+@patch('app.embeddings.requests.get')
+def test_download_resource_to_tmp_file_rejects_large_responses(mock_get, *_):
+    """
+    Remote image downloads are capped even when Content-Length is missing.
+    """
+    response = MagicMock()
+    response.headers = {'Content-Type': 'image/jpeg'}
+    response.iter_content.return_value = [b'1234', b'5']
+    mock_get.return_value = response
+
+    with pytest.raises(ValueError):
+        embeddings_module.download_resource_to_tmp_file('https://example.com/image.jpg')
 
 
 @patch('app.embeddings.get_model_device', return_value='mps')
@@ -348,6 +398,41 @@ def test_image_embedding_get_image_embeddings(mock_processor, mock_model, _):
     model.get_image_features.assert_called_once_with(**inputs)
     assert embeddings == [0.3, 0.4]
     assert tokens == 577
+
+
+@patch('app.embeddings.os.remove')
+@patch('app.embeddings.Image.open')
+@patch('app.embeddings.download_resource_to_tmp_file', return_value='/tmp/query-image.jpg')
+@patch('app.embeddings.get_model_device', return_value=None)
+@patch('app.embeddings.CLIPModel')
+@patch('app.embeddings.AutoProcessor')
+def test_image_embedding_removes_downloaded_query_images(
+        mock_processor, mock_model, _, mock_download, mock_image_open, mock_remove):
+    """
+    Remote query image temporary files are removed after embedding.
+    """
+    image = object()
+    opened_image = MagicMock()
+    opened_image.__enter__.return_value.copy.return_value = image
+    mock_image_open.return_value = opened_image
+    inputs = FakeInputs({'pixel_values': FakeTensor(shape=[1, 3, 336, 336])})
+    processor = MagicMock(return_value=inputs)
+    mock_processor.from_pretrained.return_value = processor
+    model = MagicMock()
+    model.config = SimpleNamespace(
+        vision_config=SimpleNamespace(patch_size=14),
+    )
+    model.parameters.return_value = []
+    model.get_image_features.return_value = [[0.3, 0.4]]
+    mock_model.from_pretrained.return_value = model
+
+    image_embedding = embeddings_module.ImageEmbedding()
+    image_embedding.get_embeddings(image='https://example.com/image.jpg', openai_format=False)
+
+    mock_download.assert_called_once_with('https://example.com/image.jpg')
+    mock_image_open.assert_called_once_with('/tmp/query-image.jpg')
+    processor.assert_called_with(images=image, return_tensors='pt', padding=True)
+    mock_remove.assert_called_once_with('/tmp/query-image.jpg')
 
 
 @patch('app.embeddings.CHROMA_LOAD_PAGE_SIZE', 2)

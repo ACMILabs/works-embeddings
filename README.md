@@ -31,6 +31,15 @@ Image queries can pass a local image path inside the container or a URL:
 
 * http://localhost:8081/images/?json=false&image=https://example.com/image.jpg
 
+Remote image URLs are disabled unless their host is listed in `IMAGE_SEARCH_ALLOWED_HOSTS`. This must be a comma-separated list of exact hostnames:
+
+```text
+IMAGE_SEARCH_ALLOWED_HOSTS=example.com,images.example.org
+IMAGE_SEARCH_MAX_DOWNLOAD_BYTES=10485760
+```
+
+Only `http` and `https` URLs are accepted. Downloads are streamed, capped by `IMAGE_SEARCH_MAX_DOWNLOAD_BYTES`, and rejected if the resolved host address is not public.
+
 The first startup with `TEXT_SEARCH=true` downloads the CLIP model from Hugging Face. Set `HF_TOKEN` for higher Hugging Face Hub rate limits if needed. By default the model runs on CPU; set `TRANSFORMERS_DEVICE` to a supported PyTorch device such as `0` for `cuda:0` or `mps` for Apple Silicon.
 
 Chroma collections must contain embeddings with the same dimensions as the query model. `openai/clip-vit-large-patch14-336` returns 768-dimensional vectors, so rebuild the image/video collections after switching from the old OpenCLIP model.
