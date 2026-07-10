@@ -27,18 +27,11 @@ Text queries use Hugging Face Transformers and `openai/clip-vit-large-patch14-33
 * http://localhost:8081/images/?json=false&text=red%20dress
 * http://localhost:8081/videos/?json=false&text=city%20street
 
-Image queries can pass a local image path inside the container or a URL:
+Image queries can pass a local image path inside the container:
 
-* http://localhost:8081/images/?json=false&image=https://example.com/image.jpg
+* http://localhost:8081/images/?json=false&image=/code/query-images/example.jpg
 
-Remote image URLs are disabled unless their host is listed in `IMAGE_SEARCH_ALLOWED_HOSTS`. This must be a comma-separated list of exact hostnames:
-
-```text
-IMAGE_SEARCH_ALLOWED_HOSTS=example.com,images.example.org
-IMAGE_SEARCH_MAX_DOWNLOAD_BYTES=10485760
-```
-
-Only `http` and `https` URLs are accepted. Downloads are streamed, capped by `IMAGE_SEARCH_MAX_DOWNLOAD_BYTES`, and rejected if the resolved host address is not public.
+Remote image URLs are not fetched by the app. Put query images somewhere the container can read them, then pass that local container path.
 
 The first startup with `TEXT_SEARCH=true` downloads the CLIP model from Hugging Face. Set `HF_TOKEN` for higher Hugging Face Hub rate limits if needed. By default the model runs on CPU; set `TRANSFORMERS_DEVICE` to a supported PyTorch device such as `0` for `cuda:0` or `mps` for Apple Silicon.
 
