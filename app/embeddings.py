@@ -4,13 +4,13 @@ import random
 import subprocess
 import threading
 import time
+from collections.abc import Iterable
 
 import chromadb
-import open_clip
 import requests
-import torch
 from flask import Flask, Response, jsonify, render_template, request
 from PIL import Image
+from transformers import AutoProcessor, CLIPModel
 
 DEBUG = os.getenv('DEBUG', 'false').lower() == 'true'
 REBUILD = os.getenv('REBUILD', 'false').lower() == 'true'
@@ -455,16 +455,18 @@ class Chroma():
 
 class ImageEmbedding():
     """
-    Create image embeddings using OpenCLIP.
+    Create image embeddings using Hugging Face Transformers.
     """
     def __init__(self):
-        self.model_name = 'ViT-g-14'
-        self.pretrained = 'laion2b_s34b_b88k'
-        self.model, _, self.preprocess = open_clip.create_model_and_transforms(
-            self.model_name,
-            pretrained=self.pretrained,
-        )
-        self.tokenizer = open_clip.get_tokenizer(self.model_name)
+        self.model_name = 'openai/clip-vit-large-patch14-336'
+        self.device = get_model_device()
+        self.processor = AutoProcessor.from_pretrained(self.model_name)
+        self.model = CLIPModel.from_pretrained(self.model_name)
+        if self.device:
+            self.model.to(self.device)
+        for parameter in self.model.parameters():
+            parameter.requires_grad_(False)
+        self.model.eval()
         self.sample_frequency = 100
 
     def get_embeddings(self, image=None, image_path=None, text_string=None, openai_format=True):
@@ -472,31 +474,51 @@ class ImageEmbedding():
         Generate embeddings for an image or text string.
         """
         embeddings = None
-        preprocessed_image = None
         tokens = 0
 
-        if image_path or image:
-            if image_path:
-                preprocessed_image = self.preprocess(Image.open(image_path)).unsqueeze(0)
-            elif image:
-                preprocessed_image = self.preprocess(image).unsqueeze(0)
-            tokens = self.model.visual.positional_embedding.shape[0] - 1
-            if preprocessed_image:
-                with torch.no_grad(), torch.cuda.amp.autocast():
-                    tensors = self.model.encode_image(preprocessed_image)
-                    embeddings = tensors.cpu().numpy().tolist()[0]
+        if image_path is not None or image is not None:
+            if isinstance(image, str) and image_path is None:
+                if not os.path.exists(image):
+                    raise ValueError('Image query path must exist inside the container')
+                image_path = image
+            if image_path is not None:
+                with Image.open(image_path) as opened_image:
+                    image = opened_image.copy()
+            inputs = self.prepare_inputs(images=image)
+            embeddings = tensor_to_embedding(
+                self.model.get_image_features(**inputs)
+            )
+            tokens = count_clip_input_tokens(inputs, self.model, is_image=True)
 
         if text_string:
-            preprocessed_text = self.tokenizer(text_string)
-            tokens = preprocessed_text.shape[-1]
-            with torch.no_grad(), torch.cuda.amp.autocast():
-                tensors = self.model.encode_text(preprocessed_text)
-                embeddings = tensors.cpu().numpy().tolist()[0]
+            inputs = self.prepare_inputs(text=text_string)
+            embeddings = tensor_to_embedding(
+                self.model.get_text_features(**inputs)
+            )
+            tokens = count_clip_input_tokens(inputs, self.model)
 
         if embeddings and openai_format:
             embeddings = self.openai_embeddings_format(embeddings, tokens)
 
         return embeddings, tokens
+
+    def prepare_inputs(self, **kwargs):
+        """
+        Prepare CLIP inputs and move them to the configured device if needed.
+        """
+        processor_kwargs = {
+            'return_tensors': 'pt',
+            'padding': True,
+        }
+        if 'text' in kwargs:
+            processor_kwargs.update({
+                'truncation': True,
+                'max_length': self.model.config.text_config.max_position_embeddings,
+            })
+        inputs = self.processor(**kwargs, **processor_kwargs)
+        if self.device:
+            inputs = inputs.to(self.device)
+        return inputs
 
     def openai_embeddings_format(self, embeddings, tokens):
         """
@@ -508,13 +530,109 @@ class ImageEmbedding():
                 'object': 'embedding',
                 'embedding': embeddings,
             }],
-            'model': f'{self.model_name} {self.pretrained}',
+            'model': self.model_name,
             'usage': {
                 'total_tokens': tokens,
                 'prompt_tokens': tokens,
             },
             'object': 'list',
         }
+
+
+def get_pipeline_device_kwargs():
+    """
+    Return optional Transformers pipeline device kwargs from the environment.
+    """
+    device = os.environ.get('TRANSFORMERS_DEVICE')
+    if not device:
+        return {}
+    try:
+        device = int(device)
+    except ValueError:
+        pass
+    return {'device': device}
+
+
+def get_model_device():
+    """
+    Convert optional Transformers device settings to a torch model device.
+    """
+    device = get_pipeline_device_kwargs().get('device')
+    if isinstance(device, int):
+        if device < 0:
+            return None
+        return f'cuda:{device}'
+    return device
+
+
+def count_clip_input_tokens(inputs, model, is_image=False):
+    """
+    Count CLIP input tokens before projected features collapse to embedding size.
+    """
+    if is_image:
+        pixel_values = inputs.get('pixel_values')
+        if pixel_values is None:
+            return 0
+        image_size = get_tensor_shape(pixel_values)[-1]
+        patch_size = model.config.vision_config.patch_size
+        return ((image_size // patch_size) ** 2) + 1
+
+    attention_mask = inputs.get('attention_mask')
+    if attention_mask is not None:
+        return int(attention_mask.sum().item())
+
+    input_ids = inputs.get('input_ids')
+    if input_ids is not None:
+        return get_tensor_shape(input_ids)[-1]
+
+    return 0
+
+
+def get_tensor_shape(value):
+    """
+    Return the shape for tensor-like objects and simple nested test values.
+    """
+    if hasattr(value, 'shape'):
+        return value.shape
+    shape = []
+    while isinstance(value, list):
+        shape.append(len(value))
+        value = value[0] if value else None
+    return shape
+
+
+def tensor_to_embedding(features):
+    """
+    Convert a CLIP projected feature tensor to one embedding vector.
+    """
+    features = get_projected_features(features)
+    if hasattr(features, 'detach'):
+        features = features.detach().cpu().flatten().tolist()
+    flattened = []
+    stack = [features]
+    while stack:
+        item = stack.pop()
+        if isinstance(item, Iterable) and not isinstance(item, (str, bytes)):
+            stack.extend(reversed(item))
+        else:
+            flattened.append(float(item))
+    return flattened
+
+
+def get_projected_features(features):
+    """
+    Extract projected CLIP features from Transformers model outputs.
+    """
+    if hasattr(features, 'pooler_output') and features.pooler_output is not None:
+        return features.pooler_output
+
+    if isinstance(features, dict):
+        for key in ('pooler_output', 'image_embeds', 'text_embeds'):
+            if features.get(key) is not None:
+                return features[key]
+        raise ValueError('CLIP output did not include projected embedding features')
+
+    return features
 
 
 class XOSAPI():  # pylint: disable=too-few-public-methods
@@ -571,7 +689,7 @@ class XOSAPI():  # pylint: disable=too-few-public-methods
 
 def run_loader():
     """
-    Loads OpenCLIP and Chroma embeddings into memory.
+    Loads CLIP and Chroma embeddings into memory.
     """
     global OPENCLIP  # pylint: disable=global-statement
     global CHROMA  # pylint: disable=global-statement
@@ -579,7 +697,7 @@ def run_loader():
     with application.app_context():
         print('===================================')
         if not OPENCLIP and TEXT_SEARCH:
-            print('Starting up OpenCLIP...')
+            print('Starting up CLIP...')
             OPENCLIP = ImageEmbedding()
         if not CHROMA:
             CHROMA = Chroma()
